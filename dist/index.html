@@ -173,7 +173,6 @@
         <p class="desc" data-i18n="sz_desc"></p>
         <input class="path-input" id="szDir" autocomplete="off" />
         <p id="szStatus" class="status-text"></p>
-        <p id="szVersion" style="font-size:0.85rem; color:var(--fg2); margin-top:0.3rem;"></p>
         <h2 data-i18n="lang_title" style="margin-top:1.5rem;"></h2>
         <p class="desc" data-i18n="lang_desc"></p>
         <select id="langSelect" style="
@@ -385,11 +384,10 @@
     const szStatus = document.getElementById("szStatus");
     let szTimer = null;
 
-    const szVersion = document.getElementById("szVersion");
-
     async function updateSzVersion(dir) {
       const ver = await invoke("get_seven_zip_version", { dir });
-      szVersion.textContent = t.sz_version(ver);
+      szStatus.textContent = t.sz_version(ver);
+      szStatus.style.color = "var(--fg2)";
     }
 
     async function loadSzDir() {
@@ -399,13 +397,13 @@
     async function validateSzDir() {
       const dir = szDir.value.trim();
       const valid = await invoke("check_seven_zip_dir", { dir });
-      if (!valid) { szDir.style.borderColor = "var(--error)"; szStatus.textContent = t.sz_invalid; szStatus.style.color = "var(--error)"; szVersion.textContent = t.sz_version("?"); }
+      if (!valid) { szDir.style.borderColor = "var(--error)"; szStatus.textContent = t.sz_invalid; szStatus.style.color = "var(--error)"; }
       else { szDir.style.borderColor = ""; szStatus.textContent = ""; await updateSzVersion(dir); }
     }
     async function saveSzDir() {
       const dir = szDir.value.trim();
       const valid = await invoke("check_seven_zip_dir", { dir });
-      if (!valid) { szDir.style.borderColor = "var(--error)"; szStatus.textContent = t.sz_invalid; szStatus.style.color = "var(--error)"; szVersion.textContent = t.sz_version("?"); return; }
+      if (!valid) { szDir.style.borderColor = "var(--error)"; szStatus.textContent = t.sz_invalid; szStatus.style.color = "var(--error)"; return; }
       try { await invoke("save_seven_zip_dir", { dir }); szStatus.textContent = ""; szDir.style.borderColor = ""; await updateSzVersion(dir); showToast(t.saved_sz); }
       catch (e) { szStatus.textContent = t.save_fail(e); szStatus.style.color = "var(--error)"; }
     }
