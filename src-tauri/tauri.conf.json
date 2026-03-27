@@ -1,6 +1,6 @@
 {
   "productName": "YAUZ",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "com.yauz.dev",
   "build": {
     "frontendDist": "../dist"
@@ -22,6 +22,7 @@
     "active": false
   }
 }
+
 
 
 

@@ -165,7 +165,7 @@
       <div class="settings-col left">
         <h2 data-i18n="pw_title"></h2>
         <p class="desc" data-i18n="pw_desc"></p>
-        <textarea id="passwords"></textarea>
+        <textarea id="passwords" autocomplete="off"></textarea>
         <p id="pwStatus" class="status-text"></p>
       </div>
       <div class="settings-col right">
@@ -459,7 +459,7 @@
         overlay.innerHTML = `
           <div class="modal">
             <h3>${t.modal_title}</h3>
-            <input class="modal-input" id="modalPath" value="${defaultDir}" />
+            <input class="modal-input" id="modalPath" autocomplete="off" value="${defaultDir}" />
             <div class="modal-btns">
               <button class="btn-cancel" id="modalCancel">${t.modal_cancel}</button>
               <button class="btn-primary" id="modalOk">${t.modal_ok}</button>
