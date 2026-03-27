@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YAUZ</title>
+  <style>
+    :root {
+      --bg: #f5f5f5; --bg2: #fff; --fg: #333; --fg2: #666;
+      --border: #ddd; --input-bg: #fff; --input-border: #ccc;
+      --accent: #0078d4; --accent-hover: #106ebe;
+      --success: #2e7d32; --error: #c62828;
+      --drop-bg: transparent; --drop-dragover: #e8f0fe;
+      --drop-busy-bg: #fef9e7; --drop-busy-fg: #856404; --drop-busy-border: #f0ad4e;
+      --table-header: #fce4ec; --table-border: #eee;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1e1e1e; --bg2: #2d2d2d; --fg: #e0e0e0; --fg2: #aaa;
+        --border: #444; --input-bg: #333; --input-border: #555;
+        --accent: #4da6ff; --accent-hover: #3a8fd4;
+        --success: #66bb6a; --error: #ef5350;
+        --drop-bg: transparent; --drop-dragover: #1a3a5c;
+        --drop-busy-bg: #3e3520; --drop-busy-fg: #f0c040; --drop-busy-border: #8a7530;
+        --table-header: #4a2020; --table-border: #444;
+      }
+    }
+    @font-face {
+      font-family: 'MapleMono';
+      src: url('./fonts/MapleMonoNormal-NF-CN-Regular.ttf') format('truetype');
+      font-weight: normal; font-style: normal;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh; background: var(--bg); color: var(--fg);
+      display: flex; flex-direction: column; user-select: none;
+    }
+    nav {
+      display: flex; background: var(--bg2); border-bottom: 1px solid var(--border);
+      padding: 0 1rem;
+    }
+    nav button {
+      padding: 0.75rem 1.5rem; border: none; background: none;
+      cursor: pointer; font-size: 0.9rem; color: var(--fg2);
+      border-bottom: 2px solid transparent; transition: all 0.2s;
+    }
+    nav button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    nav button:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+  <nav>
+    <button class="active" data-page="main" data-i18n="nav_main"></button>
+    <button data-page="settings" data-i18n="nav_settings"></button>
+  </nav>
+
+  <style>
+    .page { display: none; flex: 1; padding: 1.5rem; overflow: auto; }
+    .page.active { display: flex; flex-direction: column; }
+    .drop-zone {
+      flex: 1; min-height: 200px;
+      border: 2px dashed var(--input-border); border-radius: 8px;
+      display: flex; justify-content: center; align-items: center;
+      text-align: center; color: var(--fg2); font-size: 1rem;
+      background: var(--drop-bg); transition: all 0.2s; cursor: default;
+    }
+    .drop-zone.dragover { border-color: var(--accent); background: var(--drop-dragover); color: var(--accent); }
+    .drop-zone.busy { border-color: var(--drop-busy-border); background: var(--drop-busy-bg); color: var(--drop-busy-fg); }
+    .settings-grid { display: flex; gap: 1.5rem; flex: 1; min-height: 0; }
+    .settings-col { display: flex; flex-direction: column; }
+    .settings-col.left { flex: 1; min-width: 0; }
+    .settings-col.right { width: 300px; flex-shrink: 0; }
+    .settings-col h2 { font-size: 1.1rem; margin-bottom: 0.3rem; }
+    .settings-col .desc { color: var(--fg2); font-size: 0.85rem; margin-bottom: 0.75rem; }
+    textarea#passwords {
+      flex: 1; width: 100%; padding: 0.75rem;
+      border: 1px solid var(--input-border); border-radius: 6px;
+      background: var(--input-bg); color: var(--fg);
+      font-family: 'MapleMono', Consolas, 'Courier New', monospace;
+      font-size: 0.9rem; line-height: 1.6;
+      resize: none; outline: none; transition: border-color 0.2s; user-select: text;
+    }
+    textarea#passwords::placeholder { font-family: 'MapleMono', 'Microsoft YaHei UI', sans-serif; }
+    textarea#passwords:focus { border-color: var(--accent); }
+    .path-input {
+      width: 100%; padding: 0.5rem 0.75rem;
+      border: 1px solid var(--input-border); border-radius: 6px;
+      background: var(--input-bg); color: var(--fg);
+      font-family: 'MapleMono', Consolas, 'Courier New', monospace; font-size: 0.85rem;
+      outline: none; transition: border-color 0.2s; user-select: text;
+    }
+    .path-input::placeholder { font-family: 'MapleMono', 'Microsoft YaHei UI', sans-serif; }
+    .path-input:focus { border-color: var(--accent); }
+    .status-text { margin-top: 0.4rem; font-size: 0.85rem; color: var(--fg2); min-height: 1.2em; }
+    .toast-container {
+      position: fixed; top: 1rem; right: 1rem; z-index: 9999;
+      display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none;
+    }
+    .toast {
+      padding: 0.7rem 1rem; border-radius: 6px; font-size: 0.85rem;
+      background: var(--bg2); color: var(--fg); border: 1px solid var(--border);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      opacity: 0; transform: translateX(100%);
+      animation: toast-in 0.3s ease forwards;
+      pointer-events: auto; max-width: 360px; word-break: break-all;
+    }
+    .toast.out { animation: toast-out 0.3s ease forwards; }
+    @keyframes toast-in { to { opacity: 1; transform: translateX(0); } }
+    @keyframes toast-out { to { opacity: 0; transform: translateX(100%); } }
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      display: flex; justify-content: center; align-items: center; z-index: 1000;
+    }
+    .modal {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 1.5rem; width: 500px; max-width: 90vw; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    }
+    .modal h3 { font-size: 1rem; margin-bottom: 0.75rem; }
+    .modal .modal-input {
+      width: 100%; padding: 0.5rem 0.75rem;
+      border: 1px solid var(--input-border); border-radius: 6px;
+      background: var(--input-bg); color: var(--fg);
+      font-family: 'MapleMono', Consolas, 'Courier New', monospace; font-size: 0.85rem;
+      outline: none; user-select: text;
+    }
+    .modal .modal-input:focus { border-color: var(--accent); }
+    .modal .modal-btns { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
+    .modal .modal-btns button { padding: 0.4rem 1rem; border-radius: 4px; border: none; cursor: pointer; font-size: 0.85rem; }
+    .modal .btn-primary { background: var(--accent); color: #fff; }
+    .modal .btn-primary:hover { background: var(--accent-hover); }
+    .modal .btn-cancel { background: var(--input-bg); color: var(--fg); border: 1px solid var(--input-border); }
+  </style>
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- 首次启动覆盖层 -->
+  <div id="setupOverlay" style="
+    display:none; position:fixed; inset:0; z-index:10000;
+    background:var(--bg); 
+    justify-content:center; align-items:center;
+  ">
+    <div style="width:420px; max-width:90vw; text-align:center;">
+      <h1 style="font-size:1.8rem; margin-bottom:0.5rem;">YAUZ</h1>
+      <p id="setupDesc" style="color:var(--fg2); margin-bottom:1.5rem;"></p>
+      <div style="text-align:left;">
+        <input class="path-input" id="setupSzDir" autocomplete="off" style="user-select:text;" />
+        <p id="setupSzStatus" class="status-text"></p>
+      </div>
+      <div style="margin-top:1.5rem; display:flex; justify-content:center;">
+        <button id="setupConfirm" style="
+          padding:0.5rem 1.5rem; border-radius:4px; border:none;
+          background:var(--accent); color:#fff; cursor:pointer; font-size:0.85rem;
+        "></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="main" class="page active">
+    <div class="drop-zone" id="dropZone"><span data-i18n="drop_hint"></span></div>
+    <div id="results" style="margin-top:1rem;"></div>
+  </div>
+
+  <div id="settings" class="page">
+    <div class="settings-grid">
+      <div class="settings-col left">
+        <h2 data-i18n="pw_title"></h2>
+        <p class="desc" data-i18n="pw_desc"></p>
+        <textarea id="passwords"></textarea>
+        <p id="pwStatus" class="status-text"></p>
+      </div>
+      <div class="settings-col right">
+        <h2 data-i18n="sz_title"></h2>
+        <p class="desc" data-i18n="sz_desc"></p>
+        <input class="path-input" id="szDir" autocomplete="off" />
+        <p id="szStatus" class="status-text"></p>
+        <h2 data-i18n="lang_title" style="margin-top:1.5rem;"></h2>
+        <p class="desc" data-i18n="lang_desc"></p>
+        <select id="langSelect" style="
+          width:100%; padding:0.5rem 0.75rem;
+          border:1px solid var(--input-border); border-radius:6px;
+          background:var(--input-bg); color:var(--fg);
+          font-size:0.85rem; outline:none; cursor:pointer;
+        ">
+          <option value="auto" data-i18n-opt="lang_auto"></option>
+          <option value="zh-CN">简体中文</option>
+          <option value="zh-TW">繁體中文</option>
+          <option value="en-GB">English (UK)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── i18n ──
+    const I18N = {
+      "zh-CN": {
+        nav_main: "主界面", nav_settings: "设置",
+        drop_hint: "将压缩文件拖拽到此处，或双击选择文件",
+        extracting: (n) => `正在解压 ${n} 个文件...`,
+        all_success: "全部解压成功 ✓",
+        fail_title: "以下文件解压失败：",
+        col_file: "文件", col_reason: "原因",
+        n_success: (n) => `${n} 个文件解压成功`,
+        extract_error: (e) => `解压出错: ${e}`,
+        pw_title: "解压密码", pw_desc: "每行一个密码，修改后自动保存",
+        pw_placeholder: "在此输入解压密码，每行一个...",
+        sz_title: "7-Zip 路径", sz_desc: "7-Zip 可执行文件所在文件夹",
+        sz_placeholder: "例如: C:\\Program Files\\7-Zip",
+        sz_invalid: "路径无效：未找到 7-Zip 可执行文件",
+        saving: "保存中...",
+        save_fail: (e) => `保存失败: ${e}`,
+        load_fail: (e) => `加载失败: ${e}`,
+        dup_removed: (d) => `已移除重复密码: ${d}`,
+        modal_title: "选择解压目标路径",
+        modal_cancel: "取消", modal_ok: "开始解压",
+        filter_name: "压缩文件",
+        lang_title: "界面语言", lang_desc: "选择界面显示语言", lang_auto: "跟随系统",
+        setup_hint: "首次使用，请先指定 7-Zip 所在路径",
+        setup_desc: "首次使用，请指定 7-Zip 可执行文件所在的文件夹路径",
+        setup_confirm: "确认", setup_quit: "退出",
+      },
+      "zh-TW": {
+        nav_main: "主介面", nav_settings: "設定",
+        drop_hint: "將壓縮檔拖曳到此處，或雙擊選擇檔案",
+        extracting: (n) => `正在解壓 ${n} 個檔案...`,
+        all_success: "全部解壓成功 ✓",
+        fail_title: "以下檔案解壓失敗：",
+        col_file: "檔案", col_reason: "原因",
+        n_success: (n) => `${n} 個檔案解壓成功`,
+        extract_error: (e) => `解壓出錯: ${e}`,
+        pw_title: "解壓密碼", pw_desc: "每行一個密碼，修改後自動儲存",
+        pw_placeholder: "在此輸入解壓密碼，每行一個...",
+        sz_title: "7-Zip 路徑", sz_desc: "7-Zip 可執行檔所在資料夾",
+        sz_placeholder: "例如: C:\\Program Files\\7-Zip",
+        sz_invalid: "路徑無效：未找到 7-Zip 可執行檔",
+        saving: "儲存中...",
+        save_fail: (e) => `儲存失敗: ${e}`,
+        load_fail: (e) => `載入失敗: ${e}`,
+        dup_removed: (d) => `已移除重複密碼: ${d}`,
+        modal_title: "選擇解壓目標路徑",
+        modal_cancel: "取消", modal_ok: "開始解壓",
+        filter_name: "壓縮檔",
+        lang_title: "介面語言", lang_desc: "選擇介面顯示語言", lang_auto: "跟隨系統",
+        setup_hint: "首次使用，請先指定 7-Zip 所在路徑",
+        setup_desc: "首次使用，請指定 7-Zip 可執行檔所在的資料夾路徑",
+        setup_confirm: "確認", setup_quit: "退出",
+      },
+      "en-GB": {
+        nav_main: "Home", nav_settings: "Settings",
+        drop_hint: "Drag archive files here, or double-click to select",
+        extracting: (n) => `Extracting ${n} file(s)...`,
+        all_success: "All files extracted successfully ✓",
+        fail_title: "The following files failed to extract:",
+        col_file: "File", col_reason: "Reason",
+        n_success: (n) => `${n} file(s) extracted successfully`,
+        extract_error: (e) => `Extraction error: ${e}`,
+        pw_title: "Passwords", pw_desc: "One password per line, saved automatically",
+        pw_placeholder: "Enter extraction passwords, one per line...",
+        sz_title: "7-Zip Path", sz_desc: "Folder containing the 7-Zip executable",
+        sz_placeholder: "e.g. C:\\Program Files\\7-Zip",
+        sz_invalid: "Invalid path: 7-Zip executable not found",
+        saving: "Saving...",
+        save_fail: (e) => `Save failed: ${e}`,
+        load_fail: (e) => `Load failed: ${e}`,
+        dup_removed: (d) => `Removed duplicate passwords: ${d}`,
+        modal_title: "Choose extraction destination",
+        modal_cancel: "Cancel", modal_ok: "Extract",
+        filter_name: "Archives",
+        lang_title: "Language", lang_desc: "Choose display language", lang_auto: "System default",
+        setup_hint: "First run — please specify the 7-Zip path",
+        setup_desc: "First run — please specify the folder containing the 7-Zip executable",
+        setup_confirm: "Confirm", setup_quit: "Quit",
+      }
+    };
+
+    function detectLang() {
+      const langs = navigator.languages || [navigator.language];
+      for (const l of langs) {
+        if (l.startsWith("zh-TW") || l.startsWith("zh-HK") || l.startsWith("zh-Hant")) return "zh-TW";
+        if (l.startsWith("zh")) return "zh-CN";
+        if (l.startsWith("en")) return "en-GB";
+      }
+      return "zh-CN";
+    }
+
+    let lang = detectLang();
+    let t = I18N[lang];
+    let savedLangPref = "auto"; // will be loaded from backend
+
+    function applyI18n() {
+      t = I18N[lang];
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.dataset.i18n;
+        if (t[key]) el.textContent = t[key];
+      });
+      document.querySelectorAll("[data-i18n-opt]").forEach(el => {
+        const key = el.dataset.i18nOpt;
+        if (t[key]) el.textContent = t[key];
+      });
+      document.getElementById("passwords").placeholder = t.pw_placeholder;
+      document.getElementById("szDir").placeholder = t.sz_placeholder;
+      document.getElementById("setupSzDir").placeholder = t.sz_placeholder;
+      document.getElementById("setupDesc").textContent = t.setup_desc;
+      document.getElementById("setupConfirm").textContent = t.setup_confirm;
+      document.documentElement.lang = lang;
+    }
+    applyI18n();
+
+    const { invoke } = window.__TAURI__.core;
+
+    // ── 页面切换 ──
+    document.querySelectorAll("nav button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.page).classList.add("active");
+      });
+    });
+
+    // ── Toast ──
+    function showToast(msg, duration = 4000) {
+      const container = document.getElementById("toastContainer");
+      const el = document.createElement("div");
+      el.className = "toast"; el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => { el.classList.add("out"); el.addEventListener("animationend", () => el.remove()); }, duration);
+    }
+
+    // ── 密码管理 ──
+    const textarea = document.getElementById("passwords");
+    const pwStatus = document.getElementById("pwStatus");
+    let pwTimer = null;
+
+    async function loadPasswords() {
+      try { textarea.value = (await invoke("get_passwords")).join("\n"); }
+      catch (e) { pwStatus.textContent = t.load_fail(e); pwStatus.style.color = "var(--error)"; }
+    }
+    async function savePasswords() {
+      const lines = textarea.value.split("\n").filter(l => l.trim() !== "");
+      const seen = new Set(); const duplicates = []; const unique = [];
+      for (const l of lines) {
+        if (seen.has(l)) { if (!duplicates.includes(l)) duplicates.push(l); }
+        else { seen.add(l); unique.push(l); }
+      }
+      if (duplicates.length) {
+        showToast(t.dup_removed(duplicates.join(", ")));
+        textarea.value = unique.join("\n");
+      }
+      try { await invoke("save_passwords", { passwords: unique }); pwStatus.textContent = ""; }
+      catch (e) { pwStatus.textContent = t.save_fail(e); pwStatus.style.color = "var(--error)"; }
+    }
+    textarea.addEventListener("input", () => {
+      pwStatus.textContent = t.saving; pwStatus.style.color = "var(--fg2)";
+      clearTimeout(pwTimer); pwTimer = setTimeout(savePasswords, 300);
+    });
+    loadPasswords();
+
+    // ── 7-Zip 路径 ──
+    const szDir = document.getElementById("szDir");
+    const szStatus = document.getElementById("szStatus");
+    let szTimer = null;
+
+    async function loadSzDir() {
+      try { szDir.value = await invoke("get_seven_zip_dir"); await validateSzDir(); }
+      catch (e) { szStatus.textContent = t.load_fail(e); szStatus.style.color = "var(--error)"; }
+    }
+    async function validateSzDir() {
+      const valid = await invoke("check_seven_zip_dir", { dir: szDir.value.trim() });
+      if (!valid) { szDir.style.borderColor = "var(--error)"; szStatus.textContent = t.sz_invalid; szStatus.style.color = "var(--error)"; }
+      else { szDir.style.borderColor = ""; szStatus.textContent = ""; }
+    }
+    async function saveSzDir() {
+      const valid = await invoke("check_seven_zip_dir", { dir: szDir.value.trim() });
+      if (!valid) { szDir.style.borderColor = "var(--error)"; szStatus.textContent = t.sz_invalid; szStatus.style.color = "var(--error)"; return; }
+      try { await invoke("save_seven_zip_dir", { dir: szDir.value.trim() }); szStatus.textContent = ""; szDir.style.borderColor = ""; }
+      catch (e) { szStatus.textContent = t.save_fail(e); szStatus.style.color = "var(--error)"; }
+    }
+    szDir.addEventListener("input", () => {
+      szStatus.textContent = t.saving; szStatus.style.color = "var(--fg2)";
+      clearTimeout(szTimer); szTimer = setTimeout(saveSzDir, 300);
+    });
+    loadSzDir();
+
+    // ── 语言选择 ──
+    const langSelect = document.getElementById("langSelect");
+
+    async function loadLanguage() {
+      try {
+        const saved = await invoke("get_language");
+        if (saved && saved !== "") {
+          savedLangPref = saved;
+          if (saved !== "auto" && I18N[saved]) {
+            lang = saved;
+            applyI18n();
+          }
+        }
+        langSelect.value = savedLangPref;
+      } catch (e) { /* ignore */ }
+    }
+    langSelect.addEventListener("change", async () => {
+      const val = langSelect.value;
+      savedLangPref = val;
+      lang = (val === "auto") ? detectLang() : val;
+      applyI18n();
+      try { await invoke("save_language", { language: val }); } catch (e) { /* ignore */ }
+    });
+    loadLanguage();
+
+    // ── 首次运行检测 ──
+    (async () => {
+      const needs = await invoke("check_needs_setup");
+      if (!needs) return;
+
+      const overlay = document.getElementById("setupOverlay");
+      const setupInput = document.getElementById("setupSzDir");
+      const setupStatus = document.getElementById("setupSzStatus");
+      overlay.style.display = "flex";
+
+      let setupTimer = null;
+      setupInput.addEventListener("input", () => {
+        clearTimeout(setupTimer);
+        setupTimer = setTimeout(async () => {
+          const dir = setupInput.value.trim();
+          if (!dir) { setupInput.style.borderColor = ""; setupStatus.textContent = ""; return; }
+          const valid = await invoke("check_seven_zip_dir", { dir });
+          if (!valid) {
+            setupInput.style.borderColor = "var(--error)";
+            setupStatus.textContent = t.sz_invalid; setupStatus.style.color = "var(--error)";
+          } else {
+            setupInput.style.borderColor = "var(--success)";
+            setupStatus.textContent = "";
+          }
+        }, 300);
+      });
+
+      document.getElementById("setupConfirm").addEventListener("click", async () => {
+        const dir = setupInput.value.trim();
+        const valid = await invoke("check_seven_zip_dir", { dir });
+        if (!valid) {
+          setupInput.style.borderColor = "var(--error)";
+          setupStatus.textContent = t.sz_invalid; setupStatus.style.color = "var(--error)";
+          return;
+        }
+        await invoke("save_seven_zip_dir", { dir });
+        szDir.value = dir;
+        szDir.style.borderColor = ""; szStatus.textContent = "";
+        overlay.style.display = "none";
+      });
+
+      setupInput.focus();
+    })();
+
+    // ── 弹窗 ──
+    function askOutputDir(defaultDir) {
+      return new Promise((resolve) => {
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.innerHTML = `
+          <div class="modal">
+            <h3>${t.modal_title}</h3>
+            <input class="modal-input" id="modalPath" value="${defaultDir}" />
+            <div class="modal-btns">
+              <button class="btn-cancel" id="modalCancel">${t.modal_cancel}</button>
+              <button class="btn-primary" id="modalOk">${t.modal_ok}</button>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+        const input = document.getElementById("modalPath");
+        input.focus(); input.select();
+        const close = (val) => { overlay.remove(); resolve(val); };
+        document.getElementById("modalCancel").addEventListener("click", () => close(null));
+        document.getElementById("modalOk").addEventListener("click", () => close(input.value.trim()));
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") close(input.value.trim());
+          if (e.key === "Escape") close(null);
+        });
+      });
+    }
+
+    // ── 解压公共逻辑 ──
+    const dropZone = document.getElementById("dropZone");
+    const resultsDiv = document.getElementById("results");
+    let busy = false;
+
+    async function handleFiles(files) {
+      if (!files.length || busy) return;
+      const firstDir = files[0].replace(/[/\\][^/\\]*$/, "");
+      const outDir = await askOutputDir(firstDir);
+      if (outDir === null) return;
+
+      busy = true; dropZone.classList.add("busy");
+      dropZone.querySelector("span").textContent = t.extracting(files.length);
+      resultsDiv.innerHTML = "";
+
+      try {
+        const results = await invoke("extract_files", { files, outDir });
+        const failures = results.filter(r => !r.success);
+        if (!failures.length) {
+          resultsDiv.innerHTML = `<p style="color:var(--success);font-weight:600;">${t.all_success}</p>`;
+        } else {
+          let html = `<p style="color:var(--error);font-weight:600;margin-bottom:0.5rem;">${t.fail_title}</p>`;
+          html += `<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">`;
+          html += `<tr style="background:var(--table-header);"><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_file}</th><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_reason}</th></tr>`;
+          for (const f of failures) {
+            const name = f.file.split(/[/\\]/).pop();
+            html += `<tr style="border-bottom:1px solid var(--table-border);"><td style="padding:0.4rem 0.6rem;" title="${f.file}">${name}</td><td style="padding:0.4rem 0.6rem;">${f.reason}</td></tr>`;
+          }
+          html += `</table>`;
+          const ok = results.length - failures.length;
+          if (ok > 0) html += `<p style="color:var(--success);margin-top:0.5rem;font-size:0.85rem;">${t.n_success(ok)}</p>`;
+          resultsDiv.innerHTML = html;
+        }
+      } catch (e) { resultsDiv.innerHTML = `<p style="color:var(--error);">${t.extract_error(e)}</p>`; }
+
+      busy = false; dropZone.classList.remove("busy");
+      dropZone.querySelector("span").textContent = t.drop_hint;
+    }
+
+    // ── 拖拽 ──
+    const { getCurrentWebview } = window.__TAURI__.webview;
+    getCurrentWebview().onDragDropEvent(async (event) => {
+      const { type } = event.payload;
+      if (type === 'over') { if (!busy) dropZone.classList.add("dragover"); }
+      else if (type === 'leave' || type === 'cancel') { dropZone.classList.remove("dragover"); }
+      else if (type === 'drop') { dropZone.classList.remove("dragover"); await handleFiles(event.payload.paths || []); }
+    });
+
+    // ── 双击选择文件 ──
+    const { open: openDialog } = window.__TAURI__.dialog;
+    dropZone.addEventListener("dblclick", async () => {
+      if (busy) return;
+      const selected = await openDialog({
+        multiple: true, directory: false,
+        filters: [{ name: t.filter_name, extensions: ["zip","rar","7z","tar","gz","bz2","xz","zst"] }]
+      });
+      if (!selected) return;
+      await handleFiles(Array.isArray(selected) ? selected : [selected]);
+    });
+  </script>
+</body>
+</html>
