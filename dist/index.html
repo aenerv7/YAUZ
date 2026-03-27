@@ -44,6 +44,7 @@
       padding: 0.75rem 1.5rem; border: none; background: none;
       cursor: pointer; font-size: 0.9rem; color: var(--fg2);
       border-bottom: 2px solid transparent; transition: all 0.2s;
+      line-height: 1.4;
     }
     nav button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
     nav button:hover { color: var(--accent); }
@@ -182,6 +183,12 @@
           <option value="en-GB">English (UK)</option>
         </select>
         <p style="margin-top:auto; padding-top:1rem; font-size:0.8rem; color:var(--fg2);">
+          <button id="saveSettingsBtn" data-i18n="save_btn" style="
+            display:none; width:100%; padding:0.5rem; border-radius:4px; border:none;
+            background:var(--accent); color:#fff; cursor:pointer;
+            font-family:inherit; font-size:0.85rem; margin-bottom:1rem;
+          "></button>
+          YAUZ v<span id="appVersion"></span><br>
           <span data-i18n="font_credit"></span>
           <a href="https://font.subf.dev/" target="_blank" style="color:var(--accent); text-decoration:none;">font.subf.dev</a>
         </p>
@@ -201,7 +208,7 @@
         col_file: "文件", col_reason: "原因",
         n_success: (n) => `${n} 个文件解压成功`,
         extract_error: (e) => `解压出错: ${e}`,
-        pw_title: "解压密码", pw_desc: "每行一个密码，修改后自动保存",
+        pw_title: "解压密码", pw_desc: "每行一个密码",
         pw_placeholder: "在此输入解压密码，每行一个...",
         pw_count: (n) => `共 ${n} 条密码`,
         sz_title: "7-Zip 路径", sz_desc: "7-Zip 或 7-Zip ZS 可执行文件所在文件夹",
@@ -209,9 +216,8 @@
         sz_invalid: "路径无效：未找到 7-Zip 或 7-Zip ZS 可执行文件",
         sz_version: (v) => `7-Zip 版本: ${v}`,
         saving: "保存中...",
-        saved_pw: "密码已保存",
-        saved_sz: "7-Zip 路径已保存",
-        saved_lang: "语言设置已保存",
+        save_btn: "保存设置",
+        saved_all: "设置已保存",
         save_fail: (e) => `保存失败: ${e}`,
         load_fail: (e) => `加载失败: ${e}`,
         dup_removed: (d) => `已移除重复密码: ${d}`,
@@ -232,7 +238,7 @@
         col_file: "檔案", col_reason: "原因",
         n_success: (n) => `${n} 個檔案解壓成功`,
         extract_error: (e) => `解壓出錯: ${e}`,
-        pw_title: "解壓密碼", pw_desc: "每行一個密碼，修改後自動儲存",
+        pw_title: "解壓密碼", pw_desc: "每行一個密碼",
         pw_placeholder: "在此輸入解壓密碼，每行一個...",
         pw_count: (n) => `共 ${n} 條密碼`,
         sz_title: "7-Zip 路徑", sz_desc: "7-Zip 或 7-Zip ZS 可執行檔所在資料夾",
@@ -240,9 +246,8 @@
         sz_invalid: "路徑無效：未找到 7-Zip 或 7-Zip ZS 可執行檔",
         sz_version: (v) => `7-Zip 版本: ${v}`,
         saving: "儲存中...",
-        saved_pw: "密碼已儲存",
-        saved_sz: "7-Zip 路徑已儲存",
-        saved_lang: "語言設定已儲存",
+        save_btn: "儲存設定",
+        saved_all: "設定已儲存",
         save_fail: (e) => `儲存失敗: ${e}`,
         load_fail: (e) => `載入失敗: ${e}`,
         dup_removed: (d) => `已移除重複密碼: ${d}`,
@@ -263,7 +268,7 @@
         col_file: "File", col_reason: "Reason",
         n_success: (n) => `${n} file(s) extracted successfully`,
         extract_error: (e) => `Extraction error: ${e}`,
-        pw_title: "Passwords", pw_desc: "One password per line, saved automatically",
+        pw_title: "Passwords", pw_desc: "One password per line",
         pw_placeholder: "Enter extraction passwords, one per line...",
         pw_count: (n) => `${n} password(s) in total`,
         sz_title: "7-Zip Path", sz_desc: "Folder containing the 7-Zip or 7-Zip ZS executable",
@@ -271,9 +276,8 @@
         sz_invalid: "Invalid path: 7-Zip or 7-Zip ZS executable not found",
         sz_version: (v) => `7-Zip version: ${v}`,
         saving: "Saving...",
-        saved_pw: "Passwords saved",
-        saved_sz: "7-Zip path saved",
-        saved_lang: "Language setting saved",
+        save_btn: "Save Settings",
+        saved_all: "Settings saved",
         save_fail: (e) => `Save failed: ${e}`,
         load_fail: (e) => `Load failed: ${e}`,
         dup_removed: (d) => `Removed duplicate passwords: ${d}`,
@@ -322,6 +326,11 @@
 
     const { invoke } = window.__TAURI__.core;
 
+    // ── 版本号 ──
+    window.__TAURI__.app.getVersion().then(v => {
+      document.getElementById("appVersion").textContent = v;
+    });
+
     // ── 页面切换 ──
     document.querySelectorAll("nav button").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -341,11 +350,32 @@
       setTimeout(() => { el.classList.add("out"); el.addEventListener("animationend", () => el.remove()); }, duration);
     }
 
+    // ── 脏状态追踪 ──
+    const saveBtn = document.getElementById("saveSettingsBtn");
+    let savedSnapshot = { pw: "", sz: "", lang: "" };
+    let szValid = true;
+
+    function takeSnapshot() {
+      savedSnapshot = { pw: textarea.value, sz: szDir.value, lang: savedLangPref };
+    }
+    function checkDirty() {
+      const pwDirty = textarea.value !== savedSnapshot.pw;
+      const szDirty = szDir.value !== savedSnapshot.sz;
+      const langDirty = langSelect.value !== savedSnapshot.lang;
+      const otherDirty = pwDirty || langDirty;
+      // If only sz changed and it's invalid, don't show save button
+      if (szDirty && !szValid && !otherDirty) {
+        saveBtn.style.display = "none";
+        return;
+      }
+      const dirty = pwDirty || szDirty || langDirty;
+      saveBtn.style.display = dirty ? "block" : "none";
+    }
+
     // ── 密码管理 ──
     const textarea = document.getElementById("passwords");
     const pwStatus = document.getElementById("pwStatus");
     const pwCount = document.getElementById("pwCount");
-    let pwTimer = null;
 
     function updatePwCount() {
       const n = textarea.value.split("\n").filter(l => l.trim() !== "").length;
@@ -365,23 +395,19 @@
       }
       if (duplicates.length) {
         showToast(t.dup_removed(duplicates.join(", ")));
-        textarea.value = unique.join("\n");
       }
+      unique.sort((a, b) => a.localeCompare(b));
+      textarea.value = unique.join("\n");
       updatePwCount();
-      try { await invoke("save_passwords", { passwords: unique }); pwStatus.textContent = ""; showToast(t.saved_pw); }
+      try { await invoke("save_passwords", { passwords: unique }); pwStatus.textContent = ""; }
       catch (e) { pwStatus.textContent = t.save_fail(e); pwStatus.style.color = "var(--error)"; }
     }
-    textarea.addEventListener("input", () => {
-      updatePwCount();
-      pwStatus.textContent = ""; pwStatus.style.color = "var(--fg2)";
-      clearTimeout(pwTimer); pwTimer = setTimeout(savePasswords, 300);
-    });
-    loadPasswords();
+    textarea.addEventListener("input", () => { updatePwCount(); checkDirty(); });
+    // passwords loaded in init
 
     // ── 7-Zip 路径 ──
     const szDir = document.getElementById("szDir");
     const szStatus = document.getElementById("szStatus");
-    let szTimer = null;
 
     async function updateSzVersion(dir) {
       const ver = await invoke("get_seven_zip_version", { dir });
@@ -396,6 +422,7 @@
     async function validateSzDir() {
       const dir = szDir.value.trim();
       const valid = await invoke("check_seven_zip_dir", { dir });
+      szValid = valid;
       if (!valid) { szDir.style.borderColor = "var(--error)"; szStatus.textContent = t.sz_invalid; szStatus.style.color = "var(--error)"; }
       else { szDir.style.borderColor = ""; szStatus.textContent = ""; await updateSzVersion(dir); }
     }
@@ -403,14 +430,17 @@
       const dir = szDir.value.trim();
       const valid = await invoke("check_seven_zip_dir", { dir });
       if (!valid) { szDir.style.borderColor = "var(--error)"; szStatus.textContent = t.sz_invalid; szStatus.style.color = "var(--error)"; return; }
-      try { await invoke("save_seven_zip_dir", { dir }); szStatus.textContent = ""; szDir.style.borderColor = ""; await updateSzVersion(dir); showToast(t.saved_sz); }
+      try { await invoke("save_seven_zip_dir", { dir }); szStatus.textContent = ""; szDir.style.borderColor = ""; await updateSzVersion(dir); }
       catch (e) { szStatus.textContent = t.save_fail(e); szStatus.style.color = "var(--error)"; }
     }
+    let szTimer = null;
     szDir.addEventListener("input", () => {
-      szStatus.textContent = ""; szStatus.style.color = "var(--fg2)";
-      clearTimeout(szTimer); szTimer = setTimeout(saveSzDir, 300);
+      szValid = false;
+      clearTimeout(szTimer);
+      szTimer = setTimeout(async () => { await validateSzDir(); checkDirty(); }, 300);
+      checkDirty();
     });
-    loadSzDir();
+    // szDir loaded in init
 
     // ── 语言选择 ──
     const langSelect = document.getElementById("langSelect");
@@ -428,14 +458,27 @@
         langSelect.value = savedLangPref;
       } catch (e) { /* ignore */ }
     }
-    langSelect.addEventListener("change", async () => {
-      const val = langSelect.value;
-      savedLangPref = val;
-      lang = (val === "auto") ? detectLang() : val;
-      applyI18n();
-      try { await invoke("save_language", { language: val }); showToast(t.saved_lang); } catch (e) { /* ignore */ }
+    langSelect.addEventListener("change", () => {
+      checkDirty();
     });
-    loadLanguage();
+    loadLanguage().then(() => Promise.all([loadPasswords(), loadSzDir()])).then(() => takeSnapshot());
+
+    // ── 手动保存 ──
+    document.getElementById("saveSettingsBtn").addEventListener("click", async () => {
+      await savePasswords();
+      if (szValid) { await saveSzDir(); }
+      const langVal = langSelect.value;
+      savedLangPref = langVal;
+      lang = (langVal === "auto") ? detectLang() : langVal;
+      applyI18n();
+      updatePwCount();
+      try { await invoke("save_language", { language: langVal }); } catch (e) { /* ignore */ }
+      savedSnapshot.pw = textarea.value;
+      savedSnapshot.lang = langVal;
+      if (szValid) { savedSnapshot.sz = szDir.value; }
+      checkDirty();
+      showToast(t.saved_all);
+    });
 
     // ── 首次运行检测 ──
     (async () => {

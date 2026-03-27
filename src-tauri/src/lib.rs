@@ -137,8 +137,10 @@ fn get_passwords(state: State<AppState>) -> Vec<String> {
 fn save_passwords(state: State<AppState>, passwords: Vec<String>) -> Result<(), String> {
     let mut seen = std::collections::HashSet::new();
     let deduped: Vec<String> = passwords.into_iter().filter(|p| seen.insert(p.clone())).collect();
+    let mut sorted = deduped;
+    sorted.sort();
     let mut stored = state.passwords.lock().unwrap();
-    *stored = deduped;
+    *stored = sorted;
     let dir = state.seven_zip_dir.lock().unwrap().clone();
     let lang = state.language.lock().unwrap().clone();
     save_config(&stored, &dir, &lang)
