@@ -32,7 +32,7 @@
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'MapleMono', 'PingFang SC', 'Microsoft YaHei UI', sans-serif;
       min-height: 100vh; background: var(--bg); color: var(--fg);
       display: flex; flex-direction: column; user-select: none;
     }
@@ -77,20 +77,17 @@
       flex: 1; width: 100%; padding: 0.75rem;
       border: 1px solid var(--input-border); border-radius: 6px;
       background: var(--input-bg); color: var(--fg);
-      font-family: 'MapleMono', Consolas, 'Courier New', monospace;
       font-size: 0.9rem; line-height: 1.6;
       resize: none; outline: none; transition: border-color 0.2s; user-select: text;
     }
-    textarea#passwords::placeholder { font-family: 'MapleMono', 'Microsoft YaHei UI', sans-serif; }
     textarea#passwords:focus { border-color: var(--accent); }
     .path-input {
       width: 100%; padding: 0.5rem 0.75rem;
       border: 1px solid var(--input-border); border-radius: 6px;
       background: var(--input-bg); color: var(--fg);
-      font-family: 'MapleMono', Consolas, 'Courier New', monospace; font-size: 0.85rem;
+      font-size: 0.85rem;
       outline: none; transition: border-color 0.2s; user-select: text;
     }
-    .path-input::placeholder { font-family: 'MapleMono', 'Microsoft YaHei UI', sans-serif; }
     .path-input:focus { border-color: var(--accent); }
     .status-text { margin-top: 0.4rem; font-size: 0.85rem; color: var(--fg2); min-height: 1.2em; }
     .toast-container {
@@ -121,7 +118,7 @@
       width: 100%; padding: 0.5rem 0.75rem;
       border: 1px solid var(--input-border); border-radius: 6px;
       background: var(--input-bg); color: var(--fg);
-      font-family: 'MapleMono', Consolas, 'Courier New', monospace; font-size: 0.85rem;
+      font-size: 0.85rem;
       outline: none; user-select: text;
     }
     .modal .modal-input:focus { border-color: var(--accent); }
@@ -186,6 +183,10 @@
           <option value="zh-TW">繁體中文</option>
           <option value="en-GB">English (UK)</option>
         </select>
+        <p style="margin-top:auto; padding-top:1rem; font-size:0.8rem; color:var(--fg2);">
+          <span data-i18n="font_credit"></span>
+          <a href="https://font.subf.dev/" target="_blank" style="color:var(--accent); text-decoration:none;">font.subf.dev</a>
+        </p>
       </div>
     </div>
   </div>
@@ -220,7 +221,7 @@
         modal_cancel: "取消", modal_ok: "开始解压",
         filter_name: "压缩文件",
         lang_title: "界面语言", lang_desc: "选择界面显示语言", lang_auto: "跟随系统",
-        setup_hint: "首次使用，请先指定 7-Zip 所在路径",
+        font_credit: "字体: Maple Mono",
         setup_desc: "首次使用，请指定 7-Zip 或 7-Zip ZS 可执行文件所在的文件夹路径",
         setup_confirm: "确认", setup_quit: "退出",
       },
@@ -251,7 +252,7 @@
         modal_cancel: "取消", modal_ok: "開始解壓",
         filter_name: "壓縮檔",
         lang_title: "介面語言", lang_desc: "選擇介面顯示語言", lang_auto: "跟隨系統",
-        setup_hint: "首次使用，請先指定 7-Zip 所在路徑",
+        font_credit: "字體: Maple Mono",
         setup_desc: "首次使用，請指定 7-Zip 或 7-Zip ZS 可執行檔所在的資料夾路徑",
         setup_confirm: "確認", setup_quit: "退出",
       },
@@ -282,7 +283,7 @@
         modal_cancel: "Cancel", modal_ok: "Extract",
         filter_name: "Archives",
         lang_title: "Language", lang_desc: "Choose display language", lang_auto: "System default",
-        setup_hint: "First run — please specify the 7-Zip path",
+        font_credit: "Font: Maple Mono",
         setup_desc: "First run — please specify the folder containing the 7-Zip or 7-Zip ZS executable",
         setup_confirm: "Confirm", setup_quit: "Quit",
       }
