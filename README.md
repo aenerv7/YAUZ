@@ -1,6 +1,6 @@
 # YAUZ
 
-Yet Another Unzipper — a lightweight, cross-platform archive extraction tool built with [Tauri](https://tauri.app/) and Rust.
+Yet Another UZip — a lightweight, cross-platform archive extraction tool built with [Tauri](https://tauri.app/) and Rust. Inspired by [UZip from Farkway](https://www.yuque.com/farkaway/uzip/)
 
 ## Features
 
