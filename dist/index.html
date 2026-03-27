@@ -157,7 +157,6 @@
 
   <div id="main" class="page active">
     <div class="drop-zone" id="dropZone"><span data-i18n="drop_hint"></span></div>
-    <div id="results" style="margin-top:1rem;"></div>
   </div>
 
   <div id="settings" class="page">
@@ -166,6 +165,7 @@
         <h2 data-i18n="pw_title"></h2>
         <p class="desc" data-i18n="pw_desc"></p>
         <textarea id="passwords" autocomplete="off"></textarea>
+        <p id="pwCount" style="font-size:0.85rem; color:var(--fg2); margin-top:0.3rem;"></p>
         <p id="pwStatus" class="status-text"></p>
       </div>
       <div class="settings-col right">
@@ -173,6 +173,7 @@
         <p class="desc" data-i18n="sz_desc"></p>
         <input class="path-input" id="szDir" autocomplete="off" />
         <p id="szStatus" class="status-text"></p>
+        <p id="szVersion" style="font-size:0.85rem; color:var(--fg2); margin-top:0.3rem;"></p>
         <h2 data-i18n="lang_title" style="margin-top:1.5rem;"></h2>
         <p class="desc" data-i18n="lang_desc"></p>
         <select id="langSelect" style="
@@ -204,10 +205,15 @@
         extract_error: (e) => `解压出错: ${e}`,
         pw_title: "解压密码", pw_desc: "每行一个密码，修改后自动保存",
         pw_placeholder: "在此输入解压密码，每行一个...",
-        sz_title: "7-Zip 路径", sz_desc: "7-Zip 可执行文件所在文件夹",
+        pw_count: (n) => `共 ${n} 条密码`,
+        sz_title: "7-Zip 路径", sz_desc: "7-Zip 或 7-Zip ZS 可执行文件所在文件夹",
         sz_placeholder: "例如: C:\\Program Files\\7-Zip",
-        sz_invalid: "路径无效：未找到 7-Zip 可执行文件",
+        sz_invalid: "路径无效：未找到 7-Zip 或 7-Zip ZS 可执行文件",
+        sz_version: (v) => `7-Zip 版本: ${v}`,
         saving: "保存中...",
+        saved_pw: "密码已保存",
+        saved_sz: "7-Zip 路径已保存",
+        saved_lang: "语言设置已保存",
         save_fail: (e) => `保存失败: ${e}`,
         load_fail: (e) => `加载失败: ${e}`,
         dup_removed: (d) => `已移除重复密码: ${d}`,
@@ -216,7 +222,7 @@
         filter_name: "压缩文件",
         lang_title: "界面语言", lang_desc: "选择界面显示语言", lang_auto: "跟随系统",
         setup_hint: "首次使用，请先指定 7-Zip 所在路径",
-        setup_desc: "首次使用，请指定 7-Zip 可执行文件所在的文件夹路径",
+        setup_desc: "首次使用，请指定 7-Zip 或 7-Zip ZS 可执行文件所在的文件夹路径",
         setup_confirm: "确认", setup_quit: "退出",
       },
       "zh-TW": {
@@ -230,10 +236,15 @@
         extract_error: (e) => `解壓出錯: ${e}`,
         pw_title: "解壓密碼", pw_desc: "每行一個密碼，修改後自動儲存",
         pw_placeholder: "在此輸入解壓密碼，每行一個...",
-        sz_title: "7-Zip 路徑", sz_desc: "7-Zip 可執行檔所在資料夾",
+        pw_count: (n) => `共 ${n} 條密碼`,
+        sz_title: "7-Zip 路徑", sz_desc: "7-Zip 或 7-Zip ZS 可執行檔所在資料夾",
         sz_placeholder: "例如: C:\\Program Files\\7-Zip",
-        sz_invalid: "路徑無效：未找到 7-Zip 可執行檔",
+        sz_invalid: "路徑無效：未找到 7-Zip 或 7-Zip ZS 可執行檔",
+        sz_version: (v) => `7-Zip 版本: ${v}`,
         saving: "儲存中...",
+        saved_pw: "密碼已儲存",
+        saved_sz: "7-Zip 路徑已儲存",
+        saved_lang: "語言設定已儲存",
         save_fail: (e) => `儲存失敗: ${e}`,
         load_fail: (e) => `載入失敗: ${e}`,
         dup_removed: (d) => `已移除重複密碼: ${d}`,
@@ -242,7 +253,7 @@
         filter_name: "壓縮檔",
         lang_title: "介面語言", lang_desc: "選擇介面顯示語言", lang_auto: "跟隨系統",
         setup_hint: "首次使用，請先指定 7-Zip 所在路徑",
-        setup_desc: "首次使用，請指定 7-Zip 可執行檔所在的資料夾路徑",
+        setup_desc: "首次使用，請指定 7-Zip 或 7-Zip ZS 可執行檔所在的資料夾路徑",
         setup_confirm: "確認", setup_quit: "退出",
       },
       "en-GB": {
@@ -256,10 +267,15 @@
         extract_error: (e) => `Extraction error: ${e}`,
         pw_title: "Passwords", pw_desc: "One password per line, saved automatically",
         pw_placeholder: "Enter extraction passwords, one per line...",
-        sz_title: "7-Zip Path", sz_desc: "Folder containing the 7-Zip executable",
+        pw_count: (n) => `${n} password(s) in total`,
+        sz_title: "7-Zip Path", sz_desc: "Folder containing the 7-Zip or 7-Zip ZS executable",
         sz_placeholder: "e.g. C:\\Program Files\\7-Zip",
-        sz_invalid: "Invalid path: 7-Zip executable not found",
+        sz_invalid: "Invalid path: 7-Zip or 7-Zip ZS executable not found",
+        sz_version: (v) => `7-Zip version: ${v}`,
         saving: "Saving...",
+        saved_pw: "Passwords saved",
+        saved_sz: "7-Zip path saved",
+        saved_lang: "Language setting saved",
         save_fail: (e) => `Save failed: ${e}`,
         load_fail: (e) => `Load failed: ${e}`,
         dup_removed: (d) => `Removed duplicate passwords: ${d}`,
@@ -268,7 +284,7 @@
         filter_name: "Archives",
         lang_title: "Language", lang_desc: "Choose display language", lang_auto: "System default",
         setup_hint: "First run — please specify the 7-Zip path",
-        setup_desc: "First run — please specify the folder containing the 7-Zip executable",
+        setup_desc: "First run — please specify the folder containing the 7-Zip or 7-Zip ZS executable",
         setup_confirm: "Confirm", setup_quit: "Quit",
       }
     };
@@ -330,10 +346,16 @@
     // ── 密码管理 ──
     const textarea = document.getElementById("passwords");
     const pwStatus = document.getElementById("pwStatus");
+    const pwCount = document.getElementById("pwCount");
     let pwTimer = null;
 
+    function updatePwCount() {
+      const n = textarea.value.split("\n").filter(l => l.trim() !== "").length;
+      pwCount.textContent = t.pw_count(n);
+    }
+
     async function loadPasswords() {
-      try { textarea.value = (await invoke("get_passwords")).join("\n"); }
+      try { textarea.value = (await invoke("get_passwords")).join("\n"); updatePwCount(); }
       catch (e) { pwStatus.textContent = t.load_fail(e); pwStatus.style.color = "var(--error)"; }
     }
     async function savePasswords() {
@@ -347,11 +369,13 @@
         showToast(t.dup_removed(duplicates.join(", ")));
         textarea.value = unique.join("\n");
       }
-      try { await invoke("save_passwords", { passwords: unique }); pwStatus.textContent = ""; }
+      updatePwCount();
+      try { await invoke("save_passwords", { passwords: unique }); pwStatus.textContent = ""; showToast(t.saved_pw); }
       catch (e) { pwStatus.textContent = t.save_fail(e); pwStatus.style.color = "var(--error)"; }
     }
     textarea.addEventListener("input", () => {
-      pwStatus.textContent = t.saving; pwStatus.style.color = "var(--fg2)";
+      updatePwCount();
+      pwStatus.textContent = ""; pwStatus.style.color = "var(--fg2)";
       clearTimeout(pwTimer); pwTimer = setTimeout(savePasswords, 300);
     });
     loadPasswords();
@@ -361,23 +385,32 @@
     const szStatus = document.getElementById("szStatus");
     let szTimer = null;
 
+    const szVersion = document.getElementById("szVersion");
+
+    async function updateSzVersion(dir) {
+      const ver = await invoke("get_seven_zip_version", { dir });
+      szVersion.textContent = t.sz_version(ver);
+    }
+
     async function loadSzDir() {
       try { szDir.value = await invoke("get_seven_zip_dir"); await validateSzDir(); }
       catch (e) { szStatus.textContent = t.load_fail(e); szStatus.style.color = "var(--error)"; }
     }
     async function validateSzDir() {
-      const valid = await invoke("check_seven_zip_dir", { dir: szDir.value.trim() });
-      if (!valid) { szDir.style.borderColor = "var(--error)"; szStatus.textContent = t.sz_invalid; szStatus.style.color = "var(--error)"; }
-      else { szDir.style.borderColor = ""; szStatus.textContent = ""; }
+      const dir = szDir.value.trim();
+      const valid = await invoke("check_seven_zip_dir", { dir });
+      if (!valid) { szDir.style.borderColor = "var(--error)"; szStatus.textContent = t.sz_invalid; szStatus.style.color = "var(--error)"; szVersion.textContent = t.sz_version("?"); }
+      else { szDir.style.borderColor = ""; szStatus.textContent = ""; await updateSzVersion(dir); }
     }
     async function saveSzDir() {
-      const valid = await invoke("check_seven_zip_dir", { dir: szDir.value.trim() });
-      if (!valid) { szDir.style.borderColor = "var(--error)"; szStatus.textContent = t.sz_invalid; szStatus.style.color = "var(--error)"; return; }
-      try { await invoke("save_seven_zip_dir", { dir: szDir.value.trim() }); szStatus.textContent = ""; szDir.style.borderColor = ""; }
+      const dir = szDir.value.trim();
+      const valid = await invoke("check_seven_zip_dir", { dir });
+      if (!valid) { szDir.style.borderColor = "var(--error)"; szStatus.textContent = t.sz_invalid; szStatus.style.color = "var(--error)"; szVersion.textContent = t.sz_version("?"); return; }
+      try { await invoke("save_seven_zip_dir", { dir }); szStatus.textContent = ""; szDir.style.borderColor = ""; await updateSzVersion(dir); showToast(t.saved_sz); }
       catch (e) { szStatus.textContent = t.save_fail(e); szStatus.style.color = "var(--error)"; }
     }
     szDir.addEventListener("input", () => {
-      szStatus.textContent = t.saving; szStatus.style.color = "var(--fg2)";
+      szStatus.textContent = ""; szStatus.style.color = "var(--fg2)";
       clearTimeout(szTimer); szTimer = setTimeout(saveSzDir, 300);
     });
     loadSzDir();
@@ -403,7 +436,7 @@
       savedLangPref = val;
       lang = (val === "auto") ? detectLang() : val;
       applyI18n();
-      try { await invoke("save_language", { language: val }); } catch (e) { /* ignore */ }
+      try { await invoke("save_language", { language: val }); showToast(t.saved_lang); } catch (e) { /* ignore */ }
     });
     loadLanguage();
 
@@ -480,7 +513,7 @@
 
     // ── 解压公共逻辑 ──
     const dropZone = document.getElementById("dropZone");
-    const resultsDiv = document.getElementById("results");
+    const dropSpan = dropZone.querySelector("span");
     let busy = false;
 
     async function handleFiles(files) {
@@ -490,15 +523,16 @@
       if (outDir === null) return;
 
       busy = true; dropZone.classList.add("busy");
-      dropZone.querySelector("span").textContent = t.extracting(files.length);
-      resultsDiv.innerHTML = "";
+      dropSpan.textContent = t.extracting(files.length);
 
+      let hasError = false;
       try {
         const results = await invoke("extract_files", { files, outDir });
         const failures = results.filter(r => !r.success);
         if (!failures.length) {
-          resultsDiv.innerHTML = `<p style="color:var(--success);font-weight:600;">${t.all_success}</p>`;
+          dropSpan.innerHTML = `<span style="color:var(--success);font-weight:600;">${t.all_success}</span>`;
         } else {
+          hasError = true;
           let html = `<p style="color:var(--error);font-weight:600;margin-bottom:0.5rem;">${t.fail_title}</p>`;
           html += `<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">`;
           html += `<tr style="background:var(--table-header);"><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_file}</th><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_reason}</th></tr>`;
@@ -509,12 +543,17 @@
           html += `</table>`;
           const ok = results.length - failures.length;
           if (ok > 0) html += `<p style="color:var(--success);margin-top:0.5rem;font-size:0.85rem;">${t.n_success(ok)}</p>`;
-          resultsDiv.innerHTML = html;
+          dropSpan.innerHTML = html;
         }
-      } catch (e) { resultsDiv.innerHTML = `<p style="color:var(--error);">${t.extract_error(e)}</p>`; }
+      } catch (e) {
+        hasError = true;
+        dropSpan.innerHTML = `<span style="color:var(--error);">${t.extract_error(e)}</span>`;
+      }
 
       busy = false; dropZone.classList.remove("busy");
-      dropZone.querySelector("span").textContent = t.drop_hint;
+      if (!hasError) {
+        setTimeout(() => { dropSpan.textContent = t.drop_hint; }, 5000);
+      }
     }
 
     // ── 拖拽 ──

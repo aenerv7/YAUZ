@@ -59,9 +59,17 @@ fn expand_env_vars(path: &str) -> String {
 fn resolve_seven_zip_exe(dir: &str) -> PathBuf {
     let d = PathBuf::from(expand_env_vars(dir));
     #[cfg(target_os = "windows")]
-    { d.join("7z.exe") }
+    {
+        let exe = d.join("7z.exe");
+        if exe.exists() { return exe; }
+        d.join("7zz.exe")
+    }
     #[cfg(not(target_os = "windows"))]
-    { d.join("7z") }
+    {
+        let exe = d.join("7z");
+        if exe.exists() { return exe; }
+        d.join("7zz")
+    }
 }
 
 // ── INI 读写 ──
@@ -174,6 +182,38 @@ fn save_language(state: State<AppState>, language: String) -> Result<(), String>
 fn check_seven_zip_dir(dir: String) -> bool {
     let exe = resolve_seven_zip_exe(&dir);
     exe.exists()
+}
+
+#[tauri::command]
+fn get_seven_zip_version(dir: String) -> String {
+    let exe = resolve_seven_zip_exe(&dir);
+    if !exe.exists() { return "?".to_string(); }
+    let mut cmd = Command::new(&exe);
+    cmd.args(["i"]);
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x08000000);
+    match cmd.output() {
+        Ok(o) => {
+            let stdout = String::from_utf8_lossy(&o.stdout);
+            // Standard: "7-Zip 24.09 (x64) : Copyright ..."
+            // ZS:       "7-Zip 26.00 ZS v1.5.7 (x64) : Copyright ..."
+            for line in stdout.lines() {
+                if line.starts_with("7-Zip") {
+                    let parts: Vec<&str> = line.split_whitespace().collect();
+                    if parts.len() >= 2 {
+                        let ver = parts[1];
+                        // Check for ZS edition
+                        if parts.len() >= 4 && parts[2] == "ZS" {
+                            return format!("{} ZS {}", ver, parts[3]);
+                        }
+                        return ver.to_string();
+                    }
+                }
+            }
+            "?".to_string()
+        }
+        Err(_) => "?".to_string(),
+    }
 }
 
 #[tauri::command]
@@ -300,7 +340,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_passwords, save_passwords,
-            get_seven_zip_dir, save_seven_zip_dir, check_seven_zip_dir,
+            get_seven_zip_dir, save_seven_zip_dir, check_seven_zip_dir, get_seven_zip_version,
             get_language, save_language,
             check_needs_setup,
             extract_files
