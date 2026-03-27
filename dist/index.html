@@ -77,7 +77,7 @@
       flex: 1; width: 100%; padding: 0.75rem;
       border: 1px solid var(--input-border); border-radius: 6px;
       background: var(--input-bg); color: var(--fg);
-      font-size: 0.9rem; line-height: 1.6;
+      font-family: inherit; font-size: 0.9rem; line-height: 1.6;
       resize: none; outline: none; transition: border-color 0.2s; user-select: text;
     }
     textarea#passwords:focus { border-color: var(--accent); }
@@ -85,7 +85,7 @@
       width: 100%; padding: 0.5rem 0.75rem;
       border: 1px solid var(--input-border); border-radius: 6px;
       background: var(--input-bg); color: var(--fg);
-      font-size: 0.85rem;
+      font-family: inherit; font-size: 0.85rem;
       outline: none; transition: border-color 0.2s; user-select: text;
     }
     .path-input:focus { border-color: var(--accent); }
@@ -118,7 +118,7 @@
       width: 100%; padding: 0.5rem 0.75rem;
       border: 1px solid var(--input-border); border-radius: 6px;
       background: var(--input-bg); color: var(--fg);
-      font-size: 0.85rem;
+      font-family: inherit; font-size: 0.85rem;
       outline: none; user-select: text;
     }
     .modal .modal-input:focus { border-color: var(--accent); }
@@ -167,16 +167,14 @@
       </div>
       <div class="settings-col right">
         <h2 data-i18n="sz_title"></h2>
-        <p class="desc" data-i18n="sz_desc"></p>
         <input class="path-input" id="szDir" autocomplete="off" />
         <p id="szStatus" class="status-text"></p>
         <h2 data-i18n="lang_title" style="margin-top:1.5rem;"></h2>
-        <p class="desc" data-i18n="lang_desc"></p>
         <select id="langSelect" style="
           width:100%; padding:0.5rem 0.75rem;
           border:1px solid var(--input-border); border-radius:6px;
           background:var(--input-bg); color:var(--fg);
-          font-size:0.85rem; outline:none; cursor:pointer;
+          font-family:inherit; font-size:0.85rem; outline:none; cursor:pointer;
         ">
           <option value="auto" data-i18n-opt="lang_auto"></option>
           <option value="zh-CN">简体中文</option>
