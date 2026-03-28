@@ -337,6 +337,7 @@ pub fn run() {
     let (passwords, seven_zip_dir, language, needs_setup) = load_config();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
         .manage(AppState {
             passwords: Mutex::new(passwords),
             seven_zip_dir: Mutex::new(seven_zip_dir),

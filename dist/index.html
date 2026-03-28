@@ -54,6 +54,10 @@
   <nav>
     <button class="active" data-page="main" data-i18n="nav_main"></button>
     <button data-page="settings" data-i18n="nav_settings"></button>
+    <a id="appVersionLink" href="https://github.com/aenerv7/YAUZ" target="_blank" style="
+      margin-left:auto; padding:0.75rem 1rem; font-size:0.8rem; color:var(--fg2);
+      text-decoration:none; display:flex; align-items:center; line-height:1.4;
+    ">YAUZ v<span id="appVersion"></span></a>
   </nav>
 
   <style>
@@ -189,7 +193,6 @@
             background:var(--accent); color:#fff; cursor:pointer;
             font-family:inherit; font-size:0.85rem; margin-bottom:1rem;
           "></button>
-          YAUZ v<span id="appVersion"></span><br>
           <span data-i18n="font_credit"></span>
           <a href="https://font.subf.dev/" target="_blank" style="color:var(--accent); text-decoration:none;">font.subf.dev</a><br>
           <span data-i18n="icon_credit"></span>
@@ -346,6 +349,15 @@
     applyI18n();
 
     const { invoke } = window.__TAURI__.core;
+
+    // ── 外部链接 ──
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest("a[target='_blank']");
+      if (a) {
+        e.preventDefault();
+        window.__TAURI__.shell.open(a.href);
+      }
+    });
 
     // ── 版本号 ──
     window.__TAURI__.app.getVersion().then(v => {
