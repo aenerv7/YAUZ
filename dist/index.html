@@ -155,6 +155,7 @@
 
   <div id="main" class="page active">
     <div class="drop-zone" id="dropZone"><span data-i18n="drop_hint"></span></div>
+    <div id="results" style="margin-top:1rem; overflow:auto;"></div>
   </div>
 
   <div id="settings" class="page">
@@ -190,7 +191,9 @@
           "></button>
           YAUZ v<span id="appVersion"></span><br>
           <span data-i18n="font_credit"></span>
-          <a href="https://font.subf.dev/" target="_blank" style="color:var(--accent); text-decoration:none;">font.subf.dev</a>
+          <a href="https://font.subf.dev/" target="_blank" style="color:var(--accent); text-decoration:none;">font.subf.dev</a><br>
+          <span data-i18n="icon_credit"></span>
+          <a href="https://www.svgrepo.com/svg/526457/zip-file" target="_blank" style="color:var(--accent); text-decoration:none;">svgrepo.com</a>
         </p>
       </div>
     </div>
@@ -206,6 +209,11 @@
         all_success: "全部解压成功 ✓",
         fail_title: "以下文件解压失败：",
         col_file: "文件", col_reason: "原因",
+        col_password: "密码", col_status: "状态",
+        no_password: "无密码",
+        status_ok: "成功",
+        status_fail: "失败",
+        unknown_reason: "未知原因",
         n_success: (n) => `${n} 个文件解压成功`,
         extract_error: (e) => `解压出错: ${e}`,
         pw_title: "解压密码", pw_desc: "每行一个密码",
@@ -226,6 +234,7 @@
         filter_name: "压缩文件",
         lang_title: "界面语言", lang_desc: "选择界面显示语言", lang_auto: "跟随系统",
         font_credit: "字体: Maple Mono",
+        icon_credit: "图标: SVG Repo",
         setup_desc: "首次使用，请指定 7-Zip 或 7-Zip ZS 可执行文件所在的文件夹路径",
         setup_confirm: "确认", setup_quit: "退出",
       },
@@ -236,6 +245,11 @@
         all_success: "全部解壓成功 ✓",
         fail_title: "以下檔案解壓失敗：",
         col_file: "檔案", col_reason: "原因",
+        col_password: "密碼", col_status: "狀態",
+        no_password: "無密碼",
+        status_ok: "成功",
+        status_fail: "失敗",
+        unknown_reason: "未知原因",
         n_success: (n) => `${n} 個檔案解壓成功`,
         extract_error: (e) => `解壓出錯: ${e}`,
         pw_title: "解壓密碼", pw_desc: "每行一個密碼",
@@ -256,6 +270,7 @@
         filter_name: "壓縮檔",
         lang_title: "介面語言", lang_desc: "選擇介面顯示語言", lang_auto: "跟隨系統",
         font_credit: "字體: Maple Mono",
+        icon_credit: "圖示: SVG Repo",
         setup_desc: "首次使用，請指定 7-Zip 或 7-Zip ZS 可執行檔所在的資料夾路徑",
         setup_confirm: "確認", setup_quit: "退出",
       },
@@ -266,6 +281,11 @@
         all_success: "All files extracted successfully ✓",
         fail_title: "The following files failed to extract:",
         col_file: "File", col_reason: "Reason",
+        col_password: "Password", col_status: "Status",
+        no_password: "No password",
+        status_ok: "OK",
+        status_fail: "Failed",
+        unknown_reason: "Unknown reason",
         n_success: (n) => `${n} file(s) extracted successfully`,
         extract_error: (e) => `Extraction error: ${e}`,
         pw_title: "Passwords", pw_desc: "One password per line",
@@ -286,6 +306,7 @@
         filter_name: "Archives",
         lang_title: "Language", lang_desc: "Choose display language", lang_auto: "System default",
         font_credit: "Font: Maple Mono",
+        icon_credit: "Icon: SVG Repo",
         setup_desc: "First run — please specify the folder containing the 7-Zip or 7-Zip ZS executable",
         setup_confirm: "Confirm", setup_quit: "Quit",
       }
@@ -554,6 +575,7 @@
     // ── 解压公共逻辑 ──
     const dropZone = document.getElementById("dropZone");
     const dropSpan = dropZone.querySelector("span");
+    const resultsDiv = document.getElementById("results");
     let busy = false;
 
     async function handleFiles(files) {
@@ -564,36 +586,43 @@
 
       busy = true; dropZone.classList.add("busy");
       dropSpan.textContent = t.extracting(files.length);
+      resultsDiv.innerHTML = "";
 
-      let hasError = false;
       try {
         const results = await invoke("extract_files", { files, outDir });
         const failures = results.filter(r => !r.success);
-        if (!failures.length) {
-          dropSpan.innerHTML = `<span style="color:var(--success);font-weight:600;">${t.all_success}</span>`;
-        } else {
-          hasError = true;
-          let html = `<p style="color:var(--error);font-weight:600;margin-bottom:0.5rem;">${t.fail_title}</p>`;
-          html += `<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">`;
-          html += `<tr style="background:var(--table-header);"><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_file}</th><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_reason}</th></tr>`;
-          for (const f of failures) {
-            const name = f.file.split(/[/\\]/).pop();
-            html += `<tr style="border-bottom:1px solid var(--table-border);"><td style="padding:0.4rem 0.6rem;" title="${f.file}">${name}</td><td style="padding:0.4rem 0.6rem;">${f.reason}</td></tr>`;
+        const successes = results.filter(r => r.success);
+        let html = "";
+
+        if (failures.length) {
+          html += `<table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-bottom:0.75rem;">`;
+          html += `<tr style="background:var(--error);color:#fff;"><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_file}</th><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_reason}</th></tr>`;
+          for (const r of failures) {
+            const name = r.file.split(/[/\\]/).pop();
+            const reason = r.reason ? r.reason : t.unknown_reason;
+            html += `<tr style="border-bottom:1px solid var(--table-border);"><td style="padding:0.4rem 0.6rem;" title="${r.file}">${name}</td><td style="padding:0.4rem 0.6rem;">${reason}</td></tr>`;
           }
           html += `</table>`;
-          const ok = results.length - failures.length;
-          if (ok > 0) html += `<p style="color:var(--success);margin-top:0.5rem;font-size:0.85rem;">${t.n_success(ok)}</p>`;
-          dropSpan.innerHTML = html;
         }
+
+        if (successes.length) {
+          html += `<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">`;
+          html += `<tr style="background:var(--success);color:#fff;"><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_file}</th><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_password}</th></tr>`;
+          for (const r of successes) {
+            const name = r.file.split(/[/\\]/).pop();
+            const pw = r.password ? r.password : t.no_password;
+            html += `<tr style="border-bottom:1px solid var(--table-border);"><td style="padding:0.4rem 0.6rem;" title="${r.file}">${name}</td><td style="padding:0.4rem 0.6rem;">${pw}</td></tr>`;
+          }
+          html += `</table>`;
+        }
+
+        resultsDiv.innerHTML = html;
       } catch (e) {
-        hasError = true;
-        dropSpan.innerHTML = `<span style="color:var(--error);">${t.extract_error(e)}</span>`;
+        resultsDiv.innerHTML = `<p style="color:var(--error);">${t.extract_error(e)}</p>`;
       }
 
       busy = false; dropZone.classList.remove("busy");
-      if (!hasError) {
-        setTimeout(() => { dropSpan.textContent = t.drop_hint; }, 5000);
-      }
+      dropSpan.textContent = t.drop_hint;
     }
 
     // ── 拖拽 ──

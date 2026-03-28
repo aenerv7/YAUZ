@@ -230,6 +230,7 @@ struct ExtractResult {
     file: String,
     success: bool,
     reason: String,
+    password: String,
 }
 
 fn needs_password(sz: &PathBuf, archive: &str) -> bool {
@@ -284,6 +285,7 @@ fn extract_files(state: State<AppState>, files: Vec<String>, out_dir: String) ->
         return files.iter().map(|f| ExtractResult {
             file: f.clone(), success: false,
             reason: format!("7-Zip 未找到: {}", sz.display()),
+            password: String::new(),
         }).collect();
     }
 
@@ -303,7 +305,7 @@ fn extract_files(state: State<AppState>, files: Vec<String>, out_dir: String) ->
 
         let (ok, msg) = try_extract(&sz, archive, &out_dir, None);
         if ok {
-            results.push(ExtractResult { file: file_path.clone(), success: true, reason: String::new() });
+            results.push(ExtractResult { file: file_path.clone(), success: true, reason: String::new(), password: String::new() });
             continue;
         }
 
@@ -312,18 +314,19 @@ fn extract_files(state: State<AppState>, files: Vec<String>, out_dir: String) ->
             for pw in &passwords {
                 let (ok, _) = try_extract(&sz, archive, &out_dir, Some(pw));
                 if ok {
-                    results.push(ExtractResult { file: file_path.clone(), success: true, reason: String::new() });
+                    results.push(ExtractResult { file: file_path.clone(), success: true, reason: String::new(), password: pw.clone() });
                     extracted = true;
                     break;
                 }
             }
             if !extracted {
-                results.push(ExtractResult { file: file_path.clone(), success: false, reason: "所有密码均不正确".to_string() });
+                results.push(ExtractResult { file: file_path.clone(), success: false, reason: "所有密码均不正确".to_string(), password: String::new() });
             }
         } else {
             results.push(ExtractResult {
                 file: file_path.clone(), success: false,
                 reason: msg.lines().last().unwrap_or("未知错误").to_string(),
+                password: String::new(),
             });
         }
     }
