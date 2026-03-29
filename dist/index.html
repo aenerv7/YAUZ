@@ -62,7 +62,7 @@
 
   <style>
     .page { display: none; flex: 1; padding: 1.5rem; overflow: auto; }
-    .page.active { display: flex; flex-direction: column; }
+    .page.active { display: flex; flex-direction: column; position: relative; }
     .drop-zone {
       flex: 1; min-height: 200px;
       border: 2px dashed var(--input-border); border-radius: 8px;
@@ -159,7 +159,20 @@
 
   <div id="main" class="page active">
     <div class="drop-zone" id="dropZone"><span data-i18n="drop_hint"></span></div>
-    <div id="results" style="margin-top:1rem; overflow:auto;"></div>
+    <div id="resultsOverlay" style="
+      display:none; position:absolute; inset:0;
+      background:var(--bg); z-index:100;
+      flex-direction:column; padding:1.5rem;
+    ">
+      <div id="results" style="flex:1; overflow:auto;"></div>
+      <div style="padding-top:1rem; text-align:center; flex-shrink:0;">
+        <button id="closeResults" data-i18n="close_results" style="
+          padding:0.4rem 1.5rem; border-radius:4px; border:none;
+          background:var(--accent); color:#fff; cursor:pointer;
+          font-family:inherit; font-size:0.85rem;
+        "></button>
+      </div>
+    </div>
   </div>
 
   <div id="settings" class="page">
@@ -217,6 +230,7 @@
         status_ok: "成功",
         status_fail: "失败",
         unknown_reason: "未知原因",
+        close_results: "关闭",
         n_success: (n) => `${n} 个文件解压成功`,
         extract_error: (e) => `解压出错: ${e}`,
         pw_title: "解压密码", pw_desc: "每行一个密码",
@@ -253,6 +267,7 @@
         status_ok: "成功",
         status_fail: "失敗",
         unknown_reason: "未知原因",
+        close_results: "關閉",
         n_success: (n) => `${n} 個檔案解壓成功`,
         extract_error: (e) => `解壓出錯: ${e}`,
         pw_title: "解壓密碼", pw_desc: "每行一個密碼",
@@ -289,6 +304,7 @@
         status_ok: "OK",
         status_fail: "Failed",
         unknown_reason: "Unknown reason",
+        close_results: "Close",
         n_success: (n) => `${n} file(s) extracted successfully`,
         extract_error: (e) => `Extraction error: ${e}`,
         pw_title: "Passwords", pw_desc: "One password per line",
@@ -588,7 +604,12 @@
     const dropZone = document.getElementById("dropZone");
     const dropSpan = dropZone.querySelector("span");
     const resultsDiv = document.getElementById("results");
+    const resultsOverlay = document.getElementById("resultsOverlay");
     let busy = false;
+
+    document.getElementById("closeResults").addEventListener("click", () => {
+      resultsOverlay.style.display = "none";
+    });
 
     async function handleFiles(files) {
       if (!files.length || busy) return;
@@ -602,6 +623,29 @@
 
       try {
         const results = await invoke("extract_files", { files, outDir });
+
+        // Extract the base archive name, stripping split-volume suffixes
+        function getMainName(filename) {
+          // .7z.001 → .7z, .zip.001 → .zip, .rar.001 → .rar
+          const numSplit = filename.match(/^(.+\.\w+)\.\d{3,}$/);
+          if (numSplit) return numSplit[1];
+          // .part1.rar → base.rar
+          const partMatch = filename.match(/^(.+)\.part\d+\.(rar|zip|7z)$/i);
+          if (partMatch) return `${partMatch[1]}.${partMatch[2]}`;
+          // plain .001 without inner ext
+          const plainNum = filename.match(/^(.+)\.\d{3,}$/);
+          if (plainNum) return plainNum[1];
+          return filename;
+        }
+
+        function renderPartsRow(r) {
+          const fileName = r.file.split(/[/\\]/).pop();
+          const allParts = [fileName, ...(r.parts || [])].sort();
+          if (allParts.length <= 1) return "";
+          let list = allParts.map(p => `<li>${p}</li>`).join("");
+          return `<tr><td colspan="2" style="padding:0 0.6rem 0.4rem 1.5rem;"><ul style="margin:0;padding-left:1rem;font-size:0.8rem;color:var(--fg2);list-style:disc;">${list}</ul></td></tr>`;
+        }
+
         const failures = results.filter(r => !r.success);
         const successes = results.filter(r => r.success);
         let html = "";
@@ -611,8 +655,10 @@
           html += `<tr style="background:var(--error);color:#fff;"><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_file}</th><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_reason}</th></tr>`;
           for (const r of failures) {
             const name = r.file.split(/[/\\]/).pop();
-            const reason = r.reason ? r.reason : t.unknown_reason;
-            html += `<tr style="border-bottom:1px solid var(--table-border);"><td style="padding:0.4rem 0.6rem;" title="${r.file}">${name}</td><td style="padding:0.4rem 0.6rem;">${reason}</td></tr>`;
+            const mainName = getMainName(name);
+            const reason = r.reason || t.unknown_reason;
+            html += `<tr style="border-bottom:1px solid var(--table-border);"><td style="padding:0.4rem 0.6rem;" title="${r.file}">${mainName}</td><td style="padding:0.4rem 0.6rem;">${reason}</td></tr>`;
+            html += renderPartsRow(r);
           }
           html += `</table>`;
         }
@@ -622,15 +668,19 @@
           html += `<tr style="background:var(--success);color:#fff;"><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_file}</th><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_password}</th></tr>`;
           for (const r of successes) {
             const name = r.file.split(/[/\\]/).pop();
-            const pw = r.password ? r.password : t.no_password;
-            html += `<tr style="border-bottom:1px solid var(--table-border);"><td style="padding:0.4rem 0.6rem;" title="${r.file}">${name}</td><td style="padding:0.4rem 0.6rem;">${pw}</td></tr>`;
+            const mainName = getMainName(name);
+            const pw = r.password || t.no_password;
+            html += `<tr style="border-bottom:1px solid var(--table-border);"><td style="padding:0.4rem 0.6rem;" title="${r.file}">${mainName}</td><td style="padding:0.4rem 0.6rem;">${pw}</td></tr>`;
+            html += renderPartsRow(r);
           }
           html += `</table>`;
         }
 
         resultsDiv.innerHTML = html;
+        resultsOverlay.style.display = "flex";
       } catch (e) {
         resultsDiv.innerHTML = `<p style="color:var(--error);">${t.extract_error(e)}</p>`;
+        resultsOverlay.style.display = "flex";
       }
 
       busy = false; dropZone.classList.remove("busy");
@@ -651,8 +701,7 @@
     dropZone.addEventListener("dblclick", async () => {
       if (busy) return;
       const selected = await openDialog({
-        multiple: true, directory: false,
-        filters: [{ name: t.filter_name, extensions: ["zip","rar","7z","tar","gz","bz2","xz","zst"] }]
+        multiple: true, directory: false
       });
       if (!selected) return;
       await handleFiles(Array.isArray(selected) ? selected : [selected]);

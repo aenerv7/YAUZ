@@ -231,6 +231,109 @@ struct ExtractResult {
     success: bool,
     reason: String,
     password: String,
+    parts: Vec<String>,
+}
+
+/// Detect split-volume siblings for an archive file.
+/// Returns sorted list of sibling part filenames (not including the main file itself).
+fn detect_split_parts(archive: &str) -> Vec<String> {
+    use std::path::Path;
+    let path = Path::new(archive);
+    let parent = match path.parent() { Some(p) => p, None => return vec![] };
+    let filename = match path.file_name() { Some(f) => f.to_string_lossy().to_string(), None => return vec![] };
+
+    // Pattern 1: name.7z.001, name.7z.002, ...
+    // Pattern 2: name.zip.001, name.zip.002, ...
+    // Pattern 3: name.001, name.002, ...
+    if let Some(caps) = regex_match_numbered(&filename) {
+        let prefix = &caps.0;
+        let ext_len = caps.1;
+        let mut parts = Vec::new();
+        if let Ok(entries) = fs::read_dir(parent) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name == filename { continue; }
+                if name.starts_with(prefix) {
+                    let suffix = &name[prefix.len()..];
+                    // Check suffix is .NNN (same digit count)
+                    if suffix.len() == ext_len + 1 && suffix.starts_with('.') && suffix[1..].chars().all(|c| c.is_ascii_digit()) {
+                        parts.push(name);
+                    }
+                }
+            }
+        }
+        parts.sort();
+        return parts;
+    }
+
+    // Pattern 4: name.part1.rar, name.part2.rar, ...
+    let lower = filename.to_lowercase();
+    if let Some(pos) = lower.find(".part") {
+        let after_part = &lower[pos + 5..];
+        if let Some(dot_pos) = after_part.find('.') {
+            let num_str = &after_part[..dot_pos];
+            if num_str.chars().all(|c| c.is_ascii_digit()) {
+                let prefix = &filename[..pos + 5]; // up to ".partN" → ".part"
+                let ext = &filename[pos + 5 + dot_pos..]; // ".rar"
+                let mut parts = Vec::new();
+                if let Ok(entries) = fs::read_dir(parent) {
+                    for entry in entries.flatten() {
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        if name == filename { continue; }
+                        let name_lower = name.to_lowercase();
+                        if name_lower.starts_with(&prefix.to_lowercase()) && name_lower.ends_with(&ext.to_lowercase()) {
+                            let mid = &name_lower[prefix.len()..name_lower.len() - ext.len()];
+                            if mid.chars().all(|c| c.is_ascii_digit()) {
+                                parts.push(name);
+                            }
+                        }
+                    }
+                }
+                parts.sort();
+                return parts;
+            }
+        }
+    }
+
+    // Pattern 5: name.z01, name.z02 (main is .zip)
+    // Pattern 6: name.r00, name.r01 (main is .rar)
+    if lower.ends_with(".zip") || lower.ends_with(".rar") {
+        let base = &filename[..filename.len() - 4];
+        let letter = if lower.ends_with(".zip") { "z" } else { "r" };
+        let mut parts = Vec::new();
+        if let Ok(entries) = fs::read_dir(parent) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name == filename { continue; }
+                let nl = name.to_lowercase();
+                let bl = base.to_lowercase();
+                if nl.starts_with(&bl) && nl.len() == bl.len() + 4 {
+                    let suffix = &nl[bl.len()..];
+                    if suffix.starts_with(&format!(".{}", letter)) && suffix[2..].chars().all(|c| c.is_ascii_digit()) {
+                        parts.push(name);
+                    }
+                }
+            }
+        }
+        parts.sort();
+        return parts;
+    }
+
+    vec![]
+}
+
+/// Match numbered split patterns like "name.7z.001" or "name.001"
+/// Returns (prefix_before_number, digit_extension_length)
+fn regex_match_numbered(filename: &str) -> Option<(String, usize)> {
+    // Find last dot-separated segment that is all digits
+    if let Some(last_dot) = filename.rfind('.') {
+        let suffix = &filename[last_dot + 1..];
+        if suffix.len() >= 3 && suffix.chars().all(|c| c.is_ascii_digit()) {
+            let prefix = &filename[..last_dot];
+            return Some((prefix.to_string(), suffix.len()));
+        }
+    }
+    None
 }
 
 fn needs_password(sz: &PathBuf, archive: &str) -> bool {
@@ -286,6 +389,7 @@ fn extract_files(state: State<AppState>, files: Vec<String>, out_dir: String) ->
             file: f.clone(), success: false,
             reason: format!("7-Zip 未找到: {}", sz.display()),
             password: String::new(),
+            parts: vec![],
         }).collect();
     }
 
@@ -304,8 +408,9 @@ fn extract_files(state: State<AppState>, files: Vec<String>, out_dir: String) ->
         };
 
         let (ok, msg) = try_extract(&sz, archive, &out_dir, None);
+        let parts = detect_split_parts(archive);
         if ok {
-            results.push(ExtractResult { file: file_path.clone(), success: true, reason: String::new(), password: String::new() });
+            results.push(ExtractResult { file: file_path.clone(), success: true, reason: String::new(), password: String::new(), parts });
             continue;
         }
 
@@ -314,19 +419,20 @@ fn extract_files(state: State<AppState>, files: Vec<String>, out_dir: String) ->
             for pw in &passwords {
                 let (ok, _) = try_extract(&sz, archive, &out_dir, Some(pw));
                 if ok {
-                    results.push(ExtractResult { file: file_path.clone(), success: true, reason: String::new(), password: pw.clone() });
+                    results.push(ExtractResult { file: file_path.clone(), success: true, reason: String::new(), password: pw.clone(), parts: parts.clone() });
                     extracted = true;
                     break;
                 }
             }
             if !extracted {
-                results.push(ExtractResult { file: file_path.clone(), success: false, reason: "所有密码均不正确".to_string(), password: String::new() });
+                results.push(ExtractResult { file: file_path.clone(), success: false, reason: "所有密码均不正确".to_string(), password: String::new(), parts });
             }
         } else {
             results.push(ExtractResult {
                 file: file_path.clone(), success: false,
                 reason: msg.lines().last().unwrap_or("未知错误").to_string(),
                 password: String::new(),
+                parts,
             });
         }
     }
