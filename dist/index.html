@@ -135,6 +135,17 @@
   </style>
   <div class="toast-container" id="toastContainer"></div>
 
+  <!-- 解压遮罩层 -->
+  <div id="extractingOverlay" style="
+    display:none; position:fixed; inset:0; z-index:9000;
+    background:rgba(0,0,0,0.4);
+    justify-content:center; align-items:center;
+  ">
+    <div style="background:var(--bg2); padding:1.5rem 2rem; border-radius:8px; text-align:center; box-shadow:0 8px 24px rgba(0,0,0,0.2);">
+      <p id="extractingText" style="font-size:0.95rem;"></p>
+    </div>
+  </div>
+
   <!-- 首次启动覆盖层 -->
   <div id="setupOverlay" style="
     display:none; position:fixed; inset:0; z-index:10000;
@@ -222,6 +233,7 @@
         nav_main: "主界面", nav_settings: "设置",
         drop_hint: "将压缩文件拖拽到此处，或双击选择文件",
         extracting: (n) => `正在解压 ${n} 个文件...`,
+        extracting_progress: (c, t) => `正在解压 ${c}/${t}...`,
         all_success: "全部解压成功 ✓",
         fail_title: "以下文件解压失败：",
         col_file: "文件", col_reason: "原因",
@@ -259,6 +271,7 @@
         nav_main: "主介面", nav_settings: "設定",
         drop_hint: "將壓縮檔拖曳到此處，或雙擊選擇檔案",
         extracting: (n) => `正在解壓 ${n} 個檔案...`,
+        extracting_progress: (c, t) => `正在解壓 ${c}/${t}...`,
         all_success: "全部解壓成功 ✓",
         fail_title: "以下檔案解壓失敗：",
         col_file: "檔案", col_reason: "原因",
@@ -296,6 +309,7 @@
         nav_main: "Home", nav_settings: "Settings",
         drop_hint: "Drag archive files here, or double-click to select",
         extracting: (n) => `Extracting ${n} file(s)...`,
+        extracting_progress: (c, t) => `Extracting ${c}/${t}...`,
         all_success: "All files extracted successfully ✓",
         fail_title: "The following files failed to extract:",
         col_file: "File", col_reason: "Reason",
@@ -611,80 +625,87 @@
       resultsOverlay.style.display = "none";
     });
 
+    // ── 结果渲染辅助 ──
+    function getMainName(filename) {
+      const numSplit = filename.match(/^(.+\.\w+)\.\d{3,}$/);
+      if (numSplit) return numSplit[1];
+      const partMatch = filename.match(/^(.+)\.part\d+\.(rar|zip|7z)$/i);
+      if (partMatch) return `${partMatch[1]}.${partMatch[2]}`;
+      const plainNum = filename.match(/^(.+)\.\d{3,}$/);
+      if (plainNum) return plainNum[1];
+      return filename;
+    }
+    function renderPartsRow(r) {
+      const fileName = r.file.split(/[/\\]/).pop();
+      const allParts = [fileName, ...(r.parts || [])].sort();
+      if (allParts.length <= 1) return "";
+      let list = allParts.map(p => `<li>${p}</li>`).join("");
+      return `<tr><td colspan="2" style="padding:0 0.6rem 0.4rem 1.5rem;"><ul style="margin:0;padding-left:1rem;font-size:0.8rem;color:var(--fg2);list-style:disc;">${list}</ul></td></tr>`;
+    }
+    function renderResults(results) {
+      const failures = results.filter(r => !r.success);
+      const successes = results.filter(r => r.success);
+      let html = "";
+      if (failures.length) {
+        html += `<table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-bottom:0.75rem;">`;
+        html += `<tr style="background:var(--error);color:#fff;"><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_file}</th><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_reason}</th></tr>`;
+        for (const r of failures) {
+          const mainName = getMainName(r.file.split(/[/\\]/).pop());
+          html += `<tr style="border-bottom:1px solid var(--table-border);"><td style="padding:0.4rem 0.6rem;" title="${r.file}">${mainName}</td><td style="padding:0.4rem 0.6rem;">${r.reason || t.unknown_reason}</td></tr>`;
+          html += renderPartsRow(r);
+        }
+        html += `</table>`;
+      }
+      if (successes.length) {
+        html += `<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">`;
+        html += `<tr style="background:var(--success);color:#fff;"><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_file}</th><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_password}</th></tr>`;
+        for (const r of successes) {
+          const mainName = getMainName(r.file.split(/[/\\]/).pop());
+          html += `<tr style="border-bottom:1px solid var(--table-border);"><td style="padding:0.4rem 0.6rem;" title="${r.file}">${mainName}</td><td style="padding:0.4rem 0.6rem;">${r.password || t.no_password}</td></tr>`;
+          html += renderPartsRow(r);
+        }
+        html += `</table>`;
+      }
+      return html;
+    }
+
+    // ── 解压事件监听 ──
+    const { listen } = window.__TAURI__.event;
+    const extractingOverlay = document.getElementById("extractingOverlay");
+    const extractingText = document.getElementById("extractingText");
+    let unlistenProgress = null;
+    let unlistenDone = null;
+
     async function handleFiles(files) {
       if (!files.length || busy) return;
       const firstDir = files[0].replace(/[/\\][^/\\]*$/, "");
       const outDir = await askOutputDir(firstDir);
       if (outDir === null) return;
 
-      busy = true; dropZone.classList.add("busy");
-      dropSpan.textContent = t.extracting(files.length);
+      busy = true;
+      extractingText.textContent = t.extracting(files.length);
+      extractingOverlay.style.display = "flex";
       resultsDiv.innerHTML = "";
 
-      try {
-        const results = await invoke("extract_files", { files, outDir });
+      if (unlistenProgress) { unlistenProgress(); unlistenProgress = null; }
+      if (unlistenDone) { unlistenDone(); unlistenDone = null; }
 
-        // Extract the base archive name, stripping split-volume suffixes
-        function getMainName(filename) {
-          // .7z.001 → .7z, .zip.001 → .zip, .rar.001 → .rar
-          const numSplit = filename.match(/^(.+\.\w+)\.\d{3,}$/);
-          if (numSplit) return numSplit[1];
-          // .part1.rar → base.rar
-          const partMatch = filename.match(/^(.+)\.part\d+\.(rar|zip|7z)$/i);
-          if (partMatch) return `${partMatch[1]}.${partMatch[2]}`;
-          // plain .001 without inner ext
-          const plainNum = filename.match(/^(.+)\.\d{3,}$/);
-          if (plainNum) return plainNum[1];
-          return filename;
-        }
+      unlistenProgress = await listen("extract-progress", (event) => {
+        const { current, total } = event.payload;
+        extractingText.textContent = t.extracting_progress(current, total);
+      });
 
-        function renderPartsRow(r) {
-          const fileName = r.file.split(/[/\\]/).pop();
-          const allParts = [fileName, ...(r.parts || [])].sort();
-          if (allParts.length <= 1) return "";
-          let list = allParts.map(p => `<li>${p}</li>`).join("");
-          return `<tr><td colspan="2" style="padding:0 0.6rem 0.4rem 1.5rem;"><ul style="margin:0;padding-left:1rem;font-size:0.8rem;color:var(--fg2);list-style:disc;">${list}</ul></td></tr>`;
-        }
-
-        const failures = results.filter(r => !r.success);
-        const successes = results.filter(r => r.success);
-        let html = "";
-
-        if (failures.length) {
-          html += `<table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-bottom:0.75rem;">`;
-          html += `<tr style="background:var(--error);color:#fff;"><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_file}</th><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_reason}</th></tr>`;
-          for (const r of failures) {
-            const name = r.file.split(/[/\\]/).pop();
-            const mainName = getMainName(name);
-            const reason = r.reason || t.unknown_reason;
-            html += `<tr style="border-bottom:1px solid var(--table-border);"><td style="padding:0.4rem 0.6rem;" title="${r.file}">${mainName}</td><td style="padding:0.4rem 0.6rem;">${reason}</td></tr>`;
-            html += renderPartsRow(r);
-          }
-          html += `</table>`;
-        }
-
-        if (successes.length) {
-          html += `<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">`;
-          html += `<tr style="background:var(--success);color:#fff;"><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_file}</th><th style="text-align:left;padding:0.4rem 0.6rem;">${t.col_password}</th></tr>`;
-          for (const r of successes) {
-            const name = r.file.split(/[/\\]/).pop();
-            const mainName = getMainName(name);
-            const pw = r.password || t.no_password;
-            html += `<tr style="border-bottom:1px solid var(--table-border);"><td style="padding:0.4rem 0.6rem;" title="${r.file}">${mainName}</td><td style="padding:0.4rem 0.6rem;">${pw}</td></tr>`;
-            html += renderPartsRow(r);
-          }
-          html += `</table>`;
-        }
-
-        resultsDiv.innerHTML = html;
+      unlistenDone = await listen("extract-done", (event) => {
+        const results = event.payload;
+        extractingOverlay.style.display = "none";
+        resultsDiv.innerHTML = renderResults(results);
         resultsOverlay.style.display = "flex";
-      } catch (e) {
-        resultsDiv.innerHTML = `<p style="color:var(--error);">${t.extract_error(e)}</p>`;
-        resultsOverlay.style.display = "flex";
-      }
+        busy = false;
+        if (unlistenProgress) { unlistenProgress(); unlistenProgress = null; }
+        if (unlistenDone) { unlistenDone(); unlistenDone = null; }
+      });
 
-      busy = false; dropZone.classList.remove("busy");
-      dropSpan.textContent = t.drop_hint;
+      invoke("extract_files", { files, outDir });
     }
 
     // ── 拖拽 ──

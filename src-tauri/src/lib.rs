@@ -5,7 +5,7 @@ use std::process::Command;
 use std::os::windows::process::CommandExt;
 use std::sync::Mutex;
 use serde::Serialize;
-use tauri::State;
+use tauri::{State, AppHandle, Emitter};
 
 struct AppState {
     passwords: Mutex<Vec<String>>,
@@ -234,6 +234,13 @@ struct ExtractResult {
     parts: Vec<String>,
 }
 
+#[derive(Serialize, Clone)]
+struct ExtractProgress {
+    current: usize,
+    total: usize,
+    file: String,
+}
+
 /// Detect split-volume siblings for an archive file.
 /// Returns sorted list of sibling part filenames (not including the main file itself).
 fn detect_split_parts(archive: &str) -> Vec<String> {
@@ -381,62 +388,74 @@ fn try_extract(sz: &PathBuf, archive: &str, out_dir: &str, password: Option<&str
 }
 
 #[tauri::command]
-fn extract_files(state: State<AppState>, files: Vec<String>, out_dir: String) -> Vec<ExtractResult> {
+fn extract_files(app: AppHandle, state: State<AppState>, files: Vec<String>, out_dir: String) {
     let dir = state.seven_zip_dir.lock().unwrap().clone();
-    let sz = resolve_seven_zip_exe(&dir);
-    if !sz.exists() {
-        return files.iter().map(|f| ExtractResult {
-            file: f.clone(), success: false,
-            reason: format!("7-Zip 未找到: {}", sz.display()),
-            password: String::new(),
-            parts: vec![],
-        }).collect();
-    }
-
     let passwords = state.passwords.lock().unwrap().clone();
-    let mut results = Vec::new();
+    let sz = resolve_seven_zip_exe(&dir);
 
-    for file_path in &files {
-        let archive = file_path.as_str();
-        let out_dir = if out_dir.is_empty() {
-            std::path::Path::new(archive)
-                .parent()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|| ".".to_string())
-        } else {
-            out_dir.clone()
-        };
-
-        let (ok, msg) = try_extract(&sz, archive, &out_dir, None);
-        let parts = detect_split_parts(archive);
-        if ok {
-            results.push(ExtractResult { file: file_path.clone(), success: true, reason: String::new(), password: String::new(), parts });
-            continue;
-        }
-
-        if needs_password(&sz, archive) {
-            let mut extracted = false;
-            for pw in &passwords {
-                let (ok, _) = try_extract(&sz, archive, &out_dir, Some(pw));
-                if ok {
-                    results.push(ExtractResult { file: file_path.clone(), success: true, reason: String::new(), password: pw.clone(), parts: parts.clone() });
-                    extracted = true;
-                    break;
-                }
-            }
-            if !extracted {
-                results.push(ExtractResult { file: file_path.clone(), success: false, reason: "所有密码均不正确".to_string(), password: String::new(), parts });
-            }
-        } else {
-            results.push(ExtractResult {
-                file: file_path.clone(), success: false,
-                reason: msg.lines().last().unwrap_or("未知错误").to_string(),
+    std::thread::spawn(move || {
+        if !sz.exists() {
+            let results: Vec<ExtractResult> = files.iter().map(|f| ExtractResult {
+                file: f.clone(), success: false,
+                reason: format!("7-Zip 未找到: {}", sz.display()),
                 password: String::new(),
-                parts,
-            });
+                parts: vec![],
+            }).collect();
+            let _ = app.emit("extract-done", results);
+            return;
         }
-    }
-    results
+
+        let total = files.len();
+        let mut results = Vec::new();
+
+        for (i, file_path) in files.iter().enumerate() {
+            let _ = app.emit("extract-progress", ExtractProgress {
+                current: i + 1, total,
+                file: file_path.clone(),
+            });
+
+            let archive = file_path.as_str();
+            let out = if out_dir.is_empty() {
+                std::path::Path::new(archive)
+                    .parent()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|| ".".to_string())
+            } else {
+                out_dir.clone()
+            };
+
+            let (ok, msg) = try_extract(&sz, archive, &out, None);
+            let parts = detect_split_parts(archive);
+            if ok {
+                results.push(ExtractResult { file: file_path.clone(), success: true, reason: String::new(), password: String::new(), parts });
+                continue;
+            }
+
+            if needs_password(&sz, archive) {
+                let mut extracted = false;
+                for pw in &passwords {
+                    let (ok, _) = try_extract(&sz, archive, &out, Some(pw));
+                    if ok {
+                        results.push(ExtractResult { file: file_path.clone(), success: true, reason: String::new(), password: pw.clone(), parts: parts.clone() });
+                        extracted = true;
+                        break;
+                    }
+                }
+                if !extracted {
+                    results.push(ExtractResult { file: file_path.clone(), success: false, reason: "所有密码均不正确".to_string(), password: String::new(), parts });
+                }
+            } else {
+                results.push(ExtractResult {
+                    file: file_path.clone(), success: false,
+                    reason: msg.lines().last().unwrap_or("未知错误").to_string(),
+                    password: String::new(),
+                    parts,
+                });
+            }
+        }
+
+        let _ = app.emit("extract-done", results);
+    });
 }
 
 pub fn run() {
