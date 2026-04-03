@@ -380,6 +380,14 @@
 
     const { invoke } = window.__TAURI__.core;
 
+    // ── 禁用非输入区域右键菜单 ──
+    document.addEventListener("contextmenu", (e) => {
+      const tag = e.target.tagName;
+      if (tag !== "INPUT" && tag !== "TEXTAREA") {
+        e.preventDefault();
+      }
+    });
+
     // ── 外部链接 ──
     document.addEventListener("click", (e) => {
       const a = e.target.closest("a[target='_blank']");
