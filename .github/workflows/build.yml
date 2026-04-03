@@ -11,6 +11,7 @@ permissions:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -38,6 +39,12 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
+      - name: Generate macOS icon from ICO
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install imagemagick
+          magick src-tauri/icons/icon.ico -resize 512x512 src-tauri/icons/icon.png
+
       - name: Install macOS dependencies
         if: matrix.os == 'macos-latest'
         run: rustup target add aarch64-apple-darwin
@@ -45,8 +52,12 @@ jobs:
       - name: Build Tauri app
         run: npx tauri build --target ${{ matrix.target }}
 
+      - name: Rename artifact
+        shell: bash
+        run: |
+          cp "src-tauri/target/${{ matrix.target }}/release/${{ matrix.artifact }}" "${{ matrix.asset_name }}"
+
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: src-tauri/target/${{ matrix.target }}/release/${{ matrix.artifact }}
-          asset_name: ${{ matrix.asset_name }}
+          files: ${{ matrix.asset_name }}
