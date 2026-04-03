@@ -372,11 +372,11 @@ fn needs_password(sz: &PathBuf, archive: &str) -> bool {
         Ok(o) => {
             let stderr = String::from_utf8_lossy(&o.stderr);
             let stdout = String::from_utf8_lossy(&o.stdout);
-            let combined = format!("{}{}", stdout, stderr).to_lowercase();
-            combined.contains("wrong password")
-                || combined.contains("cannot open encrypted archive")
-                || combined.contains("enter password")
-                || combined.contains("encrypted")
+            let combined = format!("{}{}", stdout, stderr);
+            combined.contains("Wrong password")
+                || combined.contains("Cannot open encrypted archive")
+                || combined.contains("Enter password")
+                || combined.contains("Encrypted")
         }
         Err(_) => false,
     }
