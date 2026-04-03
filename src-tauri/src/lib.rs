@@ -197,18 +197,24 @@ fn get_seven_zip_version(dir: String) -> String {
     match cmd.output() {
         Ok(o) => {
             let stdout = String::from_utf8_lossy(&o.stdout);
-            // Standard: "7-Zip 24.09 (x64) : Copyright ..."
-            // ZS:       "7-Zip 26.00 ZS v1.5.7 (x64) : Copyright ..."
+            // Standard:  "7-Zip 24.09 (x64) : Copyright ..."
+            // ZS:        "7-Zip 26.00 ZS v1.5.7 (x64) : Copyright ..."
+            // macOS 7zz: "7-Zip (z) 24.09 (arm64) : Copyright ..."
             for line in stdout.lines() {
                 if line.starts_with("7-Zip") {
                     let parts: Vec<&str> = line.split_whitespace().collect();
+                    // "7-Zip (z) 24.09 ..." → parts[0]="7-Zip", parts[1]="(z)", parts[2]="24.09"
+                    if parts.len() >= 3 && parts[1] == "(z)" {
+                        let ver = parts[2];
+                        return format!("{} (z)", ver);
+                    }
+                    // "7-Zip 26.00 ZS v1.5.7 ..."
+                    if parts.len() >= 4 && parts[2] == "ZS" {
+                        return format!("{} ZS {}", parts[1], parts[3]);
+                    }
+                    // "7-Zip 24.09 (x64) ..."
                     if parts.len() >= 2 {
-                        let ver = parts[1];
-                        // Check for ZS edition
-                        if parts.len() >= 4 && parts[2] == "ZS" {
-                            return format!("{} ZS {}", ver, parts[3]);
-                        }
-                        return ver.to_string();
+                        return parts[1].to_string();
                     }
                 }
             }
