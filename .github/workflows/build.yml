@@ -43,7 +43,7 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           brew install imagemagick
-          magick src-tauri/icons/icon.ico -resize 512x512 src-tauri/icons/icon.png
+          magick src-tauri/icons/icon.ico -resize 512x512 -background none -alpha on -type TrueColorAlpha PNG32:src-tauri/icons/icon.png
 
       - name: Install macOS dependencies
         if: matrix.os == 'macos-latest'
