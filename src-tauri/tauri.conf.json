@@ -1,6 +1,6 @@
 {
   "productName": "YAUZ",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "identifier": "com.yauz.dev",
   "build": {
     "frontendDist": "../dist"
@@ -20,7 +20,8 @@
     ]
   },
   "bundle": {
-    "active": true
+    "active": false,
+    "icon": ["icons/icon.ico", "icons/icon.png", "icons/icon.icns"]
   }
 }
 

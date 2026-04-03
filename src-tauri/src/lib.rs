@@ -21,7 +21,20 @@ fn exe_dir() -> PathBuf {
 }
 
 fn ini_path() -> PathBuf {
-    exe_dir().join("config.ini")
+    // On macOS .app bundles, exe_dir is inside the bundle and may not be writable.
+    // Use exe_dir on Windows (portable), and a platform-appropriate location on macOS/Linux.
+    #[cfg(target_os = "windows")]
+    { exe_dir().join("config.ini") }
+    #[cfg(not(target_os = "windows"))]
+    {
+        if let Some(dir) = dirs_next::config_dir() {
+            let app_dir = dir.join("yauz");
+            let _ = fs::create_dir_all(&app_dir);
+            app_dir.join("config.ini")
+        } else {
+            exe_dir().join("config.ini")
+        }
+    }
 }
 
 fn expand_env_vars(path: &str) -> String {
@@ -359,10 +372,11 @@ fn needs_password(sz: &PathBuf, archive: &str) -> bool {
         Ok(o) => {
             let stderr = String::from_utf8_lossy(&o.stderr);
             let stdout = String::from_utf8_lossy(&o.stdout);
-            let combined = format!("{}{}", stdout, stderr);
-            combined.contains("Wrong password")
-                || combined.contains("Cannot open encrypted archive")
-                || combined.contains("Enter password")
+            let combined = format!("{}{}", stdout, stderr).to_lowercase();
+            combined.contains("wrong password")
+                || combined.contains("cannot open encrypted archive")
+                || combined.contains("enter password")
+                || combined.contains("encrypted")
         }
         Err(_) => false,
     }
@@ -448,7 +462,7 @@ fn extract_files(app: AppHandle, state: State<AppState>, files: Vec<String>, out
                     }
                 }
                 if !extracted {
-                    results.push(ExtractResult { file: file_path.clone(), success: false, reason: "所有密码均不正确".to_string(), password: String::new(), parts });
+                    results.push(ExtractResult { file: file_path.clone(), success: false, reason: "All passwords incorrect".to_string(), password: String::new(), parts });
                 }
             } else {
                 results.push(ExtractResult {

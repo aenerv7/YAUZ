@@ -48,8 +48,13 @@ jobs:
           done
           iconutil -c icns src-tauri/icons/icon.iconset -o src-tauri/icons/icon.icns
 
-      - name: Build Tauri app
+      - name: Build Tauri app (Windows)
+        if: matrix.os == 'windows-latest'
         run: npx tauri build --target ${{ matrix.target }}
+
+      - name: Build Tauri app (macOS)
+        if: matrix.os == 'macos-latest'
+        run: npx tauri build --target ${{ matrix.target }} --bundles app
 
       - name: Prepare Windows artifact
         if: matrix.os == 'windows-latest'

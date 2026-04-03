@@ -22,3 +22,9 @@ inclusion: always
 - RUSTUP_HOME: `C:\Workspace\Rust\rustup`
 - CARGO_HOME: `C:\Workspace\Rust\cargo`
 - When running Cargo or Rust toolchain commands, ensure these paths are respected (e.g. use `C:\Workspace\Rust\cargo\bin\cargo` if `cargo` is not on PATH).
+
+## Release Process
+
+- Every code change must be accompanied by a version bump before committing.
+- Version must be updated in all three files: `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`.
+- Use semantic versioning (MAJOR.MINOR.PATCH).
