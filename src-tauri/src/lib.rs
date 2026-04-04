@@ -7,6 +7,100 @@ use std::sync::Mutex;
 use serde::Serialize;
 use tauri::{State, AppHandle, Emitter};
 
+// ── macOS 菜单本地化 ──
+
+#[cfg(target_os = "macos")]
+fn setup_macos_menu(app: &tauri::App, lang: &str) -> Result<(), Box<dyn std::error::Error>> {
+    use tauri::menu::{MenuBuilder, SubmenuBuilder, PredefinedMenuItem, AboutMetadataBuilder};
+
+    struct MenuText {
+        edit: &'static str,
+        undo: &'static str,
+        redo: &'static str,
+        cut: &'static str,
+        copy: &'static str,
+        paste: &'static str,
+        select_all: &'static str,
+        window: &'static str,
+        minimize: &'static str,
+        zoom: &'static str,
+        close: &'static str,
+        front: &'static str,
+        hide: &'static str,
+        hide_others: &'static str,
+        show_all: &'static str,
+        quit: &'static str,
+        services: &'static str,
+    }
+
+    let t = match lang {
+        "zh-CN" => MenuText {
+            edit: "编辑", undo: "撤销", redo: "重做", cut: "剪切", copy: "拷贝",
+            paste: "粘贴", select_all: "全选",
+            window: "窗口", minimize: "最小化", zoom: "缩放",
+            close: "关闭", front: "前置全部窗口",
+            hide: "隐藏 YAUZ", hide_others: "隐藏其他", show_all: "显示全部",
+            quit: "退出 YAUZ", services: "服务",
+        },
+        "zh-TW" => MenuText {
+            edit: "編輯", undo: "還原", redo: "重做", cut: "剪下", copy: "拷貝",
+            paste: "貼上", select_all: "全選",
+            window: "視窗", minimize: "縮到最小", zoom: "縮放",
+            close: "關閉", front: "將所有視窗移至最前",
+            hide: "隱藏 YAUZ", hide_others: "隱藏其他", show_all: "顯示全部",
+            quit: "結束 YAUZ", services: "服務",
+        },
+        _ => MenuText {
+            edit: "Edit", undo: "Undo", redo: "Redo", cut: "Cut", copy: "Copy",
+            paste: "Paste", select_all: "Select All",
+            window: "Window", minimize: "Minimise", zoom: "Zoom",
+            close: "Close", front: "Bring All to Front",
+            hide: "Hide YAUZ", hide_others: "Hide Others", show_all: "Show All",
+            quit: "Quit YAUZ", services: "Services",
+        },
+    };
+
+    let about_metadata = AboutMetadataBuilder::new().build();
+
+    let app_submenu = SubmenuBuilder::new(app, "YAUZ")
+        .about(Some(about_metadata))
+        .separator()
+        .item(&PredefinedMenuItem::services(app, Some(t.services))?)
+        .separator()
+        .item(&PredefinedMenuItem::hide(app, Some(t.hide))?)
+        .item(&PredefinedMenuItem::hide_others(app, Some(t.hide_others))?)
+        .item(&PredefinedMenuItem::show_all(app, Some(t.show_all))?)
+        .separator()
+        .item(&PredefinedMenuItem::quit(app, Some(t.quit))?)
+        .build()?;
+
+    let edit_submenu = SubmenuBuilder::new(app, t.edit)
+        .item(&PredefinedMenuItem::undo(app, Some(t.undo))?)
+        .item(&PredefinedMenuItem::redo(app, Some(t.redo))?)
+        .separator()
+        .item(&PredefinedMenuItem::cut(app, Some(t.cut))?)
+        .item(&PredefinedMenuItem::copy(app, Some(t.copy))?)
+        .item(&PredefinedMenuItem::paste(app, Some(t.paste))?)
+        .item(&PredefinedMenuItem::select_all(app, Some(t.select_all))?)
+        .build()?;
+
+    let window_submenu = SubmenuBuilder::new(app, t.window)
+        .item(&PredefinedMenuItem::minimize(app, Some(t.minimize))?)
+        .item(&PredefinedMenuItem::maximize(app, Some(t.zoom))?)
+        .separator()
+        .item(&PredefinedMenuItem::close_window(app, Some(t.close))?)
+        .separator()
+        .item(&PredefinedMenuItem::bring_all_to_front(app, Some(t.front))?)
+        .build()?;
+
+    let menu = MenuBuilder::new(app)
+        .items(&[&app_submenu, &edit_submenu, &window_submenu])
+        .build()?;
+
+    app.set_menu(menu)?;
+    Ok(())
+}
+
 struct AppState {
     passwords: Mutex<Vec<String>>,
     seven_zip_dir: Mutex<String>,
@@ -769,9 +863,27 @@ pub fn run() {
         needs_setup = false;
     }
 
+    // Detect effective language for macOS menu
+    #[cfg(target_os = "macos")]
+    let menu_lang = {
+        let l = language.clone();
+        if l.is_empty() || l == "auto" {
+            // Detect from system
+            let sys_lang = std::env::var("LANG").unwrap_or_default();
+            if sys_lang.starts_with("zh_TW") || sys_lang.starts_with("zh_HK") { "zh-TW".to_string() }
+            else if sys_lang.starts_with("zh") { "zh-CN".to_string() }
+            else { "en-GB".to_string() }
+        } else { l }
+    };
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .setup(move |_app| {
+            #[cfg(target_os = "macos")]
+            { let _ = setup_macos_menu(_app, &menu_lang); }
+            Ok(())
+        })
         .manage(AppState {
             passwords: Mutex::new(passwords),
             seven_zip_dir: Mutex::new(seven_zip_dir),
