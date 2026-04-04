@@ -10,7 +10,7 @@ use tauri::{State, AppHandle, Emitter};
 // ── macOS 菜单本地化 ──
 
 #[cfg(target_os = "macos")]
-fn setup_macos_menu(app: &tauri::App, lang: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn build_macos_menu(app: &tauri::AppHandle, lang: &str) -> Result<Option<tauri::menu::Menu<tauri::Wry>>, Box<dyn std::error::Error>> {
     use tauri::menu::{Menu, Submenu, PredefinedMenuItem, WINDOW_SUBMENU_ID, HELP_SUBMENU_ID};
 
     struct T {
@@ -54,7 +54,7 @@ fn setup_macos_menu(app: &tauri::App, lang: &str) -> Result<(), Box<dyn std::err
             hide: "隱藏 YAUZ", hide_others: "隱藏其他",
             quit: "結束 YAUZ", services: "服務",
         },
-        _ => return Ok(()), // English — use Tauri default menu, no override needed
+        _ => return Ok(None), // English — use Tauri default menu
     };
 
     let pkg_info = app.package_info();
@@ -120,8 +120,7 @@ fn setup_macos_menu(app: &tauri::App, lang: &str) -> Result<(), Box<dyn std::err
         &[&app_submenu, &file_submenu, &edit_submenu, &view_submenu, &window_submenu, &help_submenu],
     )?;
 
-    app.set_menu(menu)?;
-    Ok(())
+    Ok(Some(menu))
 }
 
 struct AppState {
@@ -902,10 +901,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
-        .setup(move |_app| {
+        .menu(move |app| {
             #[cfg(target_os = "macos")]
-            { let _ = setup_macos_menu(_app, &menu_lang); }
-            Ok(())
+            {
+                if let Ok(Some(m)) = build_macos_menu(app, &menu_lang) {
+                    return Ok(m);
+                }
+            }
+            tauri::menu::Menu::default(app)
         })
         .manage(AppState {
             passwords: Mutex::new(passwords),
