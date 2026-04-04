@@ -919,11 +919,12 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .enable_macos_default_menu(false)
         .menu(move |app| {
             #[cfg(target_os = "macos")]
             { return build_macos_menu(app, &menu_lang); }
             #[cfg(not(target_os = "macos"))]
-            tauri::menu::Menu::default(app)
+            tauri::menu::Menu::new(app)
         })
         .on_menu_event(|app, event| {
             if event.id().as_ref() == "open_file" {

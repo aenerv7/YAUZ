@@ -43,3 +43,4 @@ inclusion: always
 - System language detection on macOS must use `defaults read -g AppleLanguages`, not the `LANG` environment variable. `LANG` is unreliable in GUI apps (typically `en_US.UTF-8` regardless of system language).
 - When adding or modifying menu items, update all three language variants (zh-CN, zh-TW, en-GB) in the `T` struct inside `build_macos_menu()`.
 - Custom menu items (like "Open File") use `MenuItem::with_id()` and emit events via `on_menu_event`. The frontend listens with `listen("menu-open-file", ...)`.
+- The menu bar is macOS-only. On Windows, use `Menu::new()` (empty menu) instead of `Menu::default()` to prevent a menu bar from appearing. Also set `enable_macos_default_menu(false)` on the Builder to prevent Tauri from auto-adding its default menu.
