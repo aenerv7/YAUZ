@@ -5475,7 +5475,7 @@ dependencies = [
 
 [[package]]
 name = "yauz"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "dirs-next",
  "reqwest 0.12.28",

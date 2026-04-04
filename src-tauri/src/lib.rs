@@ -895,13 +895,24 @@ pub fn run() {
     #[cfg(target_os = "macos")]
     let menu_lang = {
         let l = language.clone();
-        if l.is_empty() || l == "auto" {
-            // Detect from system
-            let sys_lang = std::env::var("LANG").unwrap_or_default();
-            if sys_lang.starts_with("zh_TW") || sys_lang.starts_with("zh_HK") { "zh-TW".to_string() }
-            else if sys_lang.starts_with("zh") { "zh-CN".to_string() }
-            else { "en-GB".to_string() }
-        } else { l }
+        if !l.is_empty() && l != "auto" {
+            l
+        } else {
+            // On macOS, LANG env var is unreliable for GUI apps.
+            // Read AppleLanguages from user defaults instead.
+            let output = Command::new("defaults")
+                .args(["read", "-g", "AppleLanguages"])
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                .unwrap_or_default();
+            if output.contains("zh-Hans") || output.contains("zh-CN") || output.contains("\"zh\"") {
+                "zh-CN".to_string()
+            } else if output.contains("zh-Hant") || output.contains("zh-TW") || output.contains("zh-HK") {
+                "zh-TW".to_string()
+            } else {
+                "en-GB".to_string()
+            }
+        }
     };
 
     tauri::Builder::default()
