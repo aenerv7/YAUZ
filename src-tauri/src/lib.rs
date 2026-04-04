@@ -11,86 +11,114 @@ use tauri::{State, AppHandle, Emitter};
 
 #[cfg(target_os = "macos")]
 fn setup_macos_menu(app: &tauri::App, lang: &str) -> Result<(), Box<dyn std::error::Error>> {
-    use tauri::menu::{MenuBuilder, SubmenuBuilder, PredefinedMenuItem};
+    use tauri::menu::{Menu, Submenu, PredefinedMenuItem, WINDOW_SUBMENU_ID, HELP_SUBMENU_ID};
 
-    struct MenuText {
+    struct T {
+        file: &'static str,
         edit: &'static str,
+        view: &'static str,
+        window: &'static str,
+        help: &'static str,
         undo: &'static str,
         redo: &'static str,
         cut: &'static str,
         copy: &'static str,
         paste: &'static str,
         select_all: &'static str,
-        window: &'static str,
         minimize: &'static str,
         zoom: &'static str,
+        fullscreen: &'static str,
         close: &'static str,
         hide: &'static str,
         hide_others: &'static str,
-        show_all: &'static str,
         quit: &'static str,
         services: &'static str,
     }
 
     let t = match lang {
-        "zh-CN" => MenuText {
-            edit: "编辑", undo: "撤销", redo: "重做", cut: "剪切", copy: "拷贝",
+        "zh-CN" => T {
+            file: "文件", edit: "编辑", view: "显示", window: "窗口", help: "帮助",
+            undo: "撤销", redo: "重做", cut: "剪切", copy: "拷贝",
             paste: "粘贴", select_all: "全选",
-            window: "窗口", minimize: "最小化", zoom: "缩放",
-            close: "关闭",
-            hide: "隐藏 YAUZ", hide_others: "隐藏其他", show_all: "显示全部",
+            minimize: "最小化", zoom: "缩放", fullscreen: "进入全屏幕",
+            close: "关闭窗口",
+            hide: "隐藏 YAUZ", hide_others: "隐藏其他",
             quit: "退出 YAUZ", services: "服务",
         },
-        "zh-TW" => MenuText {
-            edit: "編輯", undo: "還原", redo: "重做", cut: "剪下", copy: "拷貝",
+        "zh-TW" => T {
+            file: "檔案", edit: "編輯", view: "顯示方式", window: "視窗", help: "輔助說明",
+            undo: "還原", redo: "重做", cut: "剪下", copy: "拷貝",
             paste: "貼上", select_all: "全選",
-            window: "視窗", minimize: "縮到最小", zoom: "縮放",
-            close: "關閉",
-            hide: "隱藏 YAUZ", hide_others: "隱藏其他", show_all: "顯示全部",
+            minimize: "縮到最小", zoom: "縮放", fullscreen: "進入全螢幕",
+            close: "關閉視窗",
+            hide: "隱藏 YAUZ", hide_others: "隱藏其他",
             quit: "結束 YAUZ", services: "服務",
         },
-        _ => MenuText {
-            edit: "Edit", undo: "Undo", redo: "Redo", cut: "Cut", copy: "Copy",
-            paste: "Paste", select_all: "Select All",
-            window: "Window", minimize: "Minimise", zoom: "Zoom",
-            close: "Close",
-            hide: "Hide YAUZ", hide_others: "Hide Others", show_all: "Show All",
-            quit: "Quit YAUZ", services: "Services",
-        },
+        _ => return Ok(()), // English — use Tauri default menu, no override needed
     };
 
-    let app_submenu = SubmenuBuilder::new(app, "YAUZ")
-        .about(None)
-        .separator()
-        .item(&PredefinedMenuItem::services(app, Some(t.services))?)
-        .separator()
-        .item(&PredefinedMenuItem::hide(app, Some(t.hide))?)
-        .item(&PredefinedMenuItem::hide_others(app, Some(t.hide_others))?)
-        .item(&PredefinedMenuItem::show_all(app, Some(t.show_all))?)
-        .separator()
-        .item(&PredefinedMenuItem::quit(app, Some(t.quit))?)
-        .build()?;
+    let pkg_info = app.package_info();
+    let about_metadata = tauri::menu::AboutMetadata {
+        name: Some(pkg_info.name.clone()),
+        version: Some(pkg_info.version.to_string()),
+        ..Default::default()
+    };
 
-    let edit_submenu = SubmenuBuilder::new(app, t.edit)
-        .item(&PredefinedMenuItem::undo(app, Some(t.undo))?)
-        .item(&PredefinedMenuItem::redo(app, Some(t.redo))?)
-        .separator()
-        .item(&PredefinedMenuItem::cut(app, Some(t.cut))?)
-        .item(&PredefinedMenuItem::copy(app, Some(t.copy))?)
-        .item(&PredefinedMenuItem::paste(app, Some(t.paste))?)
-        .item(&PredefinedMenuItem::select_all(app, Some(t.select_all))?)
-        .build()?;
+    let app_submenu = Submenu::with_items(
+        app, &pkg_info.name, true,
+        &[
+            &PredefinedMenuItem::about(app, None, Some(about_metadata))?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::services(app, Some(t.services))?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::hide(app, Some(t.hide))?,
+            &PredefinedMenuItem::hide_others(app, Some(t.hide_others))?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::quit(app, Some(t.quit))?,
+        ],
+    )?;
 
-    let window_submenu = SubmenuBuilder::new(app, t.window)
-        .item(&PredefinedMenuItem::minimize(app, Some(t.minimize))?)
-        .item(&PredefinedMenuItem::maximize(app, Some(t.zoom))?)
-        .separator()
-        .item(&PredefinedMenuItem::close_window(app, Some(t.close))?)
-        .build()?;
+    let file_submenu = Submenu::with_items(
+        app, t.file, true,
+        &[&PredefinedMenuItem::close_window(app, Some(t.close))?],
+    )?;
 
-    let menu = MenuBuilder::new(app)
-        .items(&[&app_submenu, &edit_submenu, &window_submenu])
-        .build()?;
+    let edit_submenu = Submenu::with_items(
+        app, t.edit, true,
+        &[
+            &PredefinedMenuItem::undo(app, Some(t.undo))?,
+            &PredefinedMenuItem::redo(app, Some(t.redo))?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::cut(app, Some(t.cut))?,
+            &PredefinedMenuItem::copy(app, Some(t.copy))?,
+            &PredefinedMenuItem::paste(app, Some(t.paste))?,
+            &PredefinedMenuItem::select_all(app, Some(t.select_all))?,
+        ],
+    )?;
+
+    let view_submenu = Submenu::with_items(
+        app, t.view, true,
+        &[&PredefinedMenuItem::fullscreen(app, Some(t.fullscreen))?],
+    )?;
+
+    let window_submenu = Submenu::with_id_and_items(
+        app, WINDOW_SUBMENU_ID, t.window, true,
+        &[
+            &PredefinedMenuItem::minimize(app, Some(t.minimize))?,
+            &PredefinedMenuItem::maximize(app, Some(t.zoom))?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::close_window(app, Some(t.close))?,
+        ],
+    )?;
+
+    let help_submenu = Submenu::with_id_and_items(
+        app, HELP_SUBMENU_ID, t.help, true, &[],
+    )?;
+
+    let menu = Menu::with_items(
+        app,
+        &[&app_submenu, &file_submenu, &edit_submenu, &view_submenu, &window_submenu, &help_submenu],
+    )?;
 
     app.set_menu(menu)?;
     Ok(())
