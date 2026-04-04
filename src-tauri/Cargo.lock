@@ -5084,7 +5084,7 @@ dependencies = [
 
 [[package]]
 name = "yauz"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "dirs-next",
  "serde",

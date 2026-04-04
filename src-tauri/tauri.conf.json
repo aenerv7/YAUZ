@@ -1,6 +1,6 @@
 {
   "productName": "YAUZ",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "identifier": "com.yauz.dev",
   "build": {
     "frontendDist": "../dist"
@@ -21,7 +21,10 @@
   },
   "bundle": {
     "active": false,
-    "icon": ["icons/icon.ico", "icons/icon.png", "icons/icon.icns"]
+    "icon": ["icons/icon.ico", "icons/icon.png", "icons/icon.icns"],
+    "macOS": {
+      "infoPlist": "Info.plist"
+    }
   }
 }
 
