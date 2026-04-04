@@ -85,20 +85,41 @@ fn resolve_seven_zip_exe(dir: &str) -> PathBuf {
     }
 }
 
-/// Search for 7z/7zz in system PATH. Returns the full path if found.
+/// Search for 7z/7zz in system PATH (and common Homebrew paths on macOS).
+/// Returns the full path to the executable if found.
 fn find_seven_zip_in_path() -> Option<PathBuf> {
     #[cfg(target_os = "windows")]
     let names = ["7z.exe", "7zz.exe"];
     #[cfg(not(target_os = "windows"))]
     let names = ["7z", "7zz"];
 
-    if let Some(path_var) = std::env::var_os("PATH") {
-        for dir in std::env::split_paths(&path_var) {
-            for name in &names {
-                let candidate = dir.join(name);
-                if candidate.exists() {
-                    return Some(candidate);
-                }
+    // Collect PATH dirs, then append well-known Homebrew dirs on macOS
+    #[allow(unused_mut)]
+    let mut dirs: Vec<PathBuf> = std::env::var_os("PATH")
+        .map(|p| std::env::split_paths(&p).collect())
+        .unwrap_or_default();
+
+    #[cfg(target_os = "macos")]
+    {
+        let homebrew_dirs = [
+            "/opt/homebrew/bin",          // Apple Silicon
+            "/usr/local/bin",             // Intel
+            "/opt/homebrew/sbin",
+            "/usr/local/sbin",
+        ];
+        for d in homebrew_dirs {
+            let p = PathBuf::from(d);
+            if !dirs.contains(&p) {
+                dirs.push(p);
+            }
+        }
+    }
+
+    for dir in &dirs {
+        for name in &names {
+            let candidate = dir.join(name);
+            if candidate.exists() {
+                return Some(candidate);
             }
         }
     }
@@ -524,7 +545,18 @@ fn extract_files(app: AppHandle, state: State<AppState>, files: Vec<String>, out
 }
 
 pub fn run() {
-    let (passwords, seven_zip_dir, language, mut needs_setup) = load_config();
+    let (passwords, mut seven_zip_dir, language, mut needs_setup) = load_config();
+
+    // If a manual 7z path is configured but invalid, clear it and fall back
+    if !seven_zip_dir.is_empty() {
+        let exe = resolve_seven_zip_exe(&seven_zip_dir);
+        if !exe.exists() {
+            seven_zip_dir = String::new();
+            let _ = save_config(&passwords, "", &language);
+            // Re-evaluate setup need since the saved path was invalid
+            needs_setup = true;
+        }
+    }
 
     // If 7z is found in system PATH, skip setup (user can still override in settings)
     if find_seven_zip_in_path().is_some() {
