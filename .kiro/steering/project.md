@@ -34,3 +34,12 @@ inclusion: always
 - macOS system menus (File, Edit, Window, etc.) and WebView context menus require both `CFBundleLocalizations` in `Info.plist` AND actual `.lproj` directories with `Localizable.strings` files in `Contents/Resources/` of the `.app` bundle.
 - Localization string files are stored in `src-tauri/lproj/{zh-Hans,zh-Hant,en}.lproj/Localizable.strings` and bundled automatically via `tauri.conf.json` `bundle.macOS.files`.
 - `Info.plist` is configured via `src-tauri/Info.plist` and referenced in `tauri.conf.json` under `bundle.macOS.infoPlist`.
+
+## macOS Menu Bar
+
+- Tauri 2.0 uses the `muda` crate for menus. The default menu text is hardcoded English — macOS will NOT auto-translate it via `.lproj` files. Localization must be done in Rust code.
+- The custom menu is built in `build_macos_menu()` in `lib.rs`, called via `Builder::menu()` closure. Do NOT use `setup()` hook for menus — Tauri's window creation will overwrite it with the default menu.
+- The menu must replicate the full Tauri default structure (App, File, Edit, View, Window submenus) to avoid losing items. Use `WINDOW_SUBMENU_ID` for the Window submenu to preserve Tauri internal behavior.
+- System language detection on macOS must use `defaults read -g AppleLanguages`, not the `LANG` environment variable. `LANG` is unreliable in GUI apps (typically `en_US.UTF-8` regardless of system language).
+- When adding or modifying menu items, update all three language variants (zh-CN, zh-TW, en-GB) in the `T` struct inside `build_macos_menu()`.
+- Custom menu items (like "Open File") use `MenuItem::with_id()` and emit events via `on_menu_event`. The frontend listens with `listen("menu-open-file", ...)`.
