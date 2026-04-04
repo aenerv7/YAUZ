@@ -16,6 +16,7 @@ fn build_macos_menu(app: &tauri::AppHandle, lang: &str) -> tauri::Result<tauri::
     struct T {
         file: &'static str,
         open_file: &'static str,
+        about: &'static str,
         edit: &'static str,
         view: &'static str,
         window: &'static str,
@@ -37,7 +38,7 @@ fn build_macos_menu(app: &tauri::AppHandle, lang: &str) -> tauri::Result<tauri::
 
     let t = match lang {
         "zh-CN" => T {
-            file: "文件", open_file: "打开文件...",
+            file: "文件", open_file: "打开文件...", about: "关于 YAUZ",
             edit: "编辑", view: "显示", window: "窗口",
             undo: "撤销", redo: "重做", cut: "剪切", copy: "拷贝",
             paste: "粘贴", select_all: "全选",
@@ -47,7 +48,7 @@ fn build_macos_menu(app: &tauri::AppHandle, lang: &str) -> tauri::Result<tauri::
             quit: "退出 YAUZ", services: "服务",
         },
         "zh-TW" => T {
-            file: "檔案", open_file: "開啟檔案...",
+            file: "檔案", open_file: "開啟檔案...", about: "關於 YAUZ",
             edit: "編輯", view: "顯示方式", window: "視窗",
             undo: "還原", redo: "重做", cut: "剪下", copy: "拷貝",
             paste: "貼上", select_all: "全選",
@@ -57,7 +58,7 @@ fn build_macos_menu(app: &tauri::AppHandle, lang: &str) -> tauri::Result<tauri::
             quit: "結束 YAUZ", services: "服務",
         },
         _ => T {
-            file: "File", open_file: "Open File...",
+            file: "File", open_file: "Open File...", about: "About YAUZ",
             edit: "Edit", view: "View", window: "Window",
             undo: "Undo", redo: "Redo", cut: "Cut", copy: "Copy",
             paste: "Paste", select_all: "Select All",
@@ -78,7 +79,7 @@ fn build_macos_menu(app: &tauri::AppHandle, lang: &str) -> tauri::Result<tauri::
     let app_submenu = Submenu::with_items(
         app, &pkg_info.name, true,
         &[
-            &PredefinedMenuItem::about(app, None, Some(about_metadata))?,
+            &PredefinedMenuItem::about(app, Some(t.about), Some(about_metadata))?,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::services(app, Some(t.services))?,
             &PredefinedMenuItem::separator(app)?,
