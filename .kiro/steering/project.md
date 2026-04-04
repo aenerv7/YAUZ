@@ -28,3 +28,9 @@ inclusion: always
 - Every code change must be accompanied by a version bump before committing.
 - Version must be updated in all three files: `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`.
 - Use semantic versioning (MAJOR.MINOR.PATCH).
+
+## macOS Localization
+
+- macOS system menus (File, Edit, Window, etc.) and WebView context menus require both `CFBundleLocalizations` in `Info.plist` AND actual `.lproj` directories with `Localizable.strings` files in `Contents/Resources/` of the `.app` bundle.
+- Localization string files are stored in `src-tauri/lproj/{zh-Hans,zh-Hant,en}.lproj/Localizable.strings` and bundled automatically via `tauri.conf.json` `bundle.macOS.files`.
+- `Info.plist` is configured via `src-tauri/Info.plist` and referenced in `tauri.conf.json` under `bundle.macOS.infoPlist`.

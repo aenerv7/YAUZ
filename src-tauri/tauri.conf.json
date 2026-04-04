@@ -1,6 +1,6 @@
 {
   "productName": "YAUZ",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "identifier": "com.yauz.dev",
   "build": {
     "frontendDist": "../dist"
@@ -23,7 +23,12 @@
     "active": false,
     "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"],
     "macOS": {
-      "infoPlist": "Info.plist"
+      "infoPlist": "Info.plist",
+      "files": {
+        "Resources/zh-Hans.lproj/Localizable.strings": "lproj/zh-Hans.lproj/Localizable.strings",
+        "Resources/zh-Hant.lproj/Localizable.strings": "lproj/zh-Hant.lproj/Localizable.strings",
+        "Resources/en.lproj/Localizable.strings": "lproj/en.lproj/Localizable.strings"
+      }
     }
   }
 }

@@ -1,0 +1,81 @@
+/* macOS system menu localization - Simplified Chinese */
+
+/* Application menu */
+"Hide %@" = "隐藏 %@";
+"Hide Others" = "隐藏其他";
+"Show All" = "显示全部";
+"Quit %@" = "退出 %@";
+"About %@" = "关于 %@";
+"Preferences…" = "偏好设置…";
+"Settings…" = "设置…";
+"Services" = "服务";
+
+/* File menu */
+"File" = "文件";
+"Close" = "关闭";
+"Close Window" = "关闭窗口";
+
+/* Edit menu */
+"Edit" = "编辑";
+"Undo" = "撤销";
+"Redo" = "重做";
+"Cut" = "剪切";
+"Copy" = "拷贝";
+"Paste" = "粘贴";
+"Paste and Match Style" = "粘贴并匹配样式";
+"Delete" = "删除";
+"Select All" = "全选";
+"Find" = "查找";
+"Find…" = "查找…";
+"Find and Replace…" = "查找和替换…";
+"Find Next" = "查找下一个";
+"Find Previous" = "查找上一个";
+"Use Selection for Find" = "使用所选内容查找";
+"Spelling and Grammar" = "拼写和语法";
+"Show Spelling and Grammar" = "显示拼写和语法";
+"Check Document Now" = "立即检查文稿";
+"Check Spelling While Typing" = "键入时检查拼写";
+"Check Grammar With Spelling" = "随拼写检查语法";
+"Correct Spelling Automatically" = "自动纠正拼写";
+"Substitutions" = "替换";
+"Show Substitutions" = "显示替换";
+"Smart Copy/Paste" = "智能拷贝/粘贴";
+"Smart Quotes" = "智能引号";
+"Smart Dashes" = "智能破折号";
+"Smart Links" = "智能链接";
+"Text Replacement" = "文本替换";
+"Transformations" = "转换";
+"Make Upper Case" = "大写";
+"Make Lower Case" = "小写";
+"Capitalize" = "首字母大写";
+"Speech" = "语音";
+"Start Speaking" = "开始朗读";
+"Stop Speaking" = "停止朗读";
+
+/* View menu */
+"View" = "显示";
+"Enter Full Screen" = "进入全屏幕";
+"Exit Full Screen" = "退出全屏幕";
+"Toggle Full Screen" = "切换全屏幕";
+"Show Toolbar" = "显示工具栏";
+"Hide Toolbar" = "隐藏工具栏";
+"Show Sidebar" = "显示边栏";
+"Hide Sidebar" = "隐藏边栏";
+"Actual Size" = "实际大小";
+"Zoom In" = "放大";
+"Zoom Out" = "缩小";
+
+/* Window menu */
+"Window" = "窗口";
+"Minimize" = "最小化";
+"Zoom" = "缩放";
+"Bring All to Front" = "前置全部窗口";
+"Close All" = "关闭全部";
+"Arrange in Front" = "在前面排列";
+"Tile Window to Left of Screen" = "将窗口拼贴到屏幕左侧";
+"Tile Window to Right of Screen" = "将窗口拼贴到屏幕右侧";
+"Move Window to Left Side of Screen" = "将窗口移到屏幕左侧";
+"Move Window to Right Side of Screen" = "将窗口移到屏幕右侧";
+
+/* Help menu */
+"Help" = "帮助";

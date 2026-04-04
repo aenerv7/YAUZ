@@ -1,0 +1,81 @@
+/* macOS system menu localization - Traditional Chinese */
+
+/* Application menu */
+"Hide %@" = "隱藏 %@";
+"Hide Others" = "隱藏其他";
+"Show All" = "顯示全部";
+"Quit %@" = "結束 %@";
+"About %@" = "關於 %@";
+"Preferences…" = "偏好設定⋯";
+"Settings…" = "設定⋯";
+"Services" = "服務";
+
+/* File menu */
+"File" = "檔案";
+"Close" = "關閉";
+"Close Window" = "關閉視窗";
+
+/* Edit menu */
+"Edit" = "編輯";
+"Undo" = "還原";
+"Redo" = "重做";
+"Cut" = "剪下";
+"Copy" = "拷貝";
+"Paste" = "貼上";
+"Paste and Match Style" = "貼上並符合樣式";
+"Delete" = "刪除";
+"Select All" = "全選";
+"Find" = "尋找";
+"Find…" = "尋找⋯";
+"Find and Replace…" = "尋找和取代⋯";
+"Find Next" = "尋找下一個";
+"Find Previous" = "尋找上一個";
+"Use Selection for Find" = "使用所選範圍尋找";
+"Spelling and Grammar" = "拼字和文法";
+"Show Spelling and Grammar" = "顯示拼字和文法";
+"Check Document Now" = "立即檢查文件";
+"Check Spelling While Typing" = "輸入時檢查拼字";
+"Check Grammar With Spelling" = "隨拼字檢查文法";
+"Correct Spelling Automatically" = "自動修正拼字";
+"Substitutions" = "替代";
+"Show Substitutions" = "顯示替代";
+"Smart Copy/Paste" = "智慧型拷貝/貼上";
+"Smart Quotes" = "智慧型引號";
+"Smart Dashes" = "智慧型破折號";
+"Smart Links" = "智慧型連結";
+"Text Replacement" = "文字替換";
+"Transformations" = "轉換";
+"Make Upper Case" = "大寫";
+"Make Lower Case" = "小寫";
+"Capitalize" = "首字大寫";
+"Speech" = "語音";
+"Start Speaking" = "開始朗讀";
+"Stop Speaking" = "停止朗讀";
+
+/* View menu */
+"View" = "顯示方式";
+"Enter Full Screen" = "進入全螢幕";
+"Exit Full Screen" = "結束全螢幕";
+"Toggle Full Screen" = "切換全螢幕";
+"Show Toolbar" = "顯示工具列";
+"Hide Toolbar" = "隱藏工具列";
+"Show Sidebar" = "顯示側邊欄";
+"Hide Sidebar" = "隱藏側邊欄";
+"Actual Size" = "實際大小";
+"Zoom In" = "放大";
+"Zoom Out" = "縮小";
+
+/* Window menu */
+"Window" = "視窗";
+"Minimize" = "縮到最小";
+"Zoom" = "縮放";
+"Bring All to Front" = "將所有視窗移至最前";
+"Close All" = "全部關閉";
+"Arrange in Front" = "在前面排列";
+"Tile Window to Left of Screen" = "將視窗拼貼到螢幕左側";
+"Tile Window to Right of Screen" = "將視窗拼貼到螢幕右側";
+"Move Window to Left Side of Screen" = "將視窗移到螢幕左側";
+"Move Window to Right Side of Screen" = "將視窗移到螢幕右側";
+
+/* Help menu */
+"Help" = "輔助說明";
