@@ -35,19 +35,6 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      - name: Generate macOS icons from ICO
-        if: matrix.os == 'macos-latest'
-        run: |
-          brew install imagemagick
-          magick src-tauri/icons/icon.ico -resize 512x512 -background none -alpha on -type TrueColorAlpha PNG32:src-tauri/icons/icon.png
-          mkdir -p src-tauri/icons/icon.iconset
-          for size in 16 32 64 128 256 512; do
-            magick src-tauri/icons/icon.ico -resize ${size}x${size} -background none -alpha on -type TrueColorAlpha PNG32:src-tauri/icons/icon.iconset/icon_${size}x${size}.png
-            double=$((size * 2))
-            magick src-tauri/icons/icon.ico -resize ${double}x${double} -background none -alpha on -type TrueColorAlpha PNG32:src-tauri/icons/icon.iconset/icon_${size}x${size}@2x.png
-          done
-          iconutil -c icns src-tauri/icons/icon.iconset -o src-tauri/icons/icon.icns
-
       - name: Build Tauri app (Windows)
         if: matrix.os == 'windows-latest'
         run: npx tauri build --target ${{ matrix.target }}
