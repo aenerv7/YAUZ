@@ -10,8 +10,21 @@ use tauri::{State, AppHandle, Emitter};
 struct AppState {
     passwords: Mutex<Vec<String>>,
     seven_zip_dir: Mutex<String>,
+    /// 7z dir for the other platform (preserved across saves for WebDAV sync)
+    seven_zip_dir_other: Mutex<String>,
     language: Mutex<String>,
     needs_setup: Mutex<bool>,
+    webdav_url: Mutex<String>,
+    webdav_user: Mutex<String>,
+    webdav_pass: Mutex<String>,
+}
+
+fn current_platform_key() -> &'static str {
+    if cfg!(target_os = "windows") { "windows" } else { "macos" }
+}
+
+fn other_platform_key() -> &'static str {
+    if cfg!(target_os = "windows") { "macos" } else { "windows" }
 }
 
 /// 可执行文件所在目录
@@ -128,17 +141,23 @@ fn find_seven_zip_in_path() -> Option<PathBuf> {
 
 // ── INI 读写 ──
 
-fn load_config() -> (Vec<String>, String, String, bool) {
+/// Returns (passwords, seven_zip_dir_current, seven_zip_dir_other, language, first_run, webdav_url, webdav_user, webdav_pass, migrated_legacy)
+fn load_config() -> (Vec<String>, String, String, String, bool, String, String, String, bool) {
     let path = ini_path();
     let mut first_run = false;
     if !path.exists() {
         first_run = true;
-        return (Vec::new(), String::new(), String::new(), first_run);
+        return (Vec::new(), String::new(), String::new(), String::new(), first_run, String::new(), String::new(), String::new(), false);
     }
     let content = fs::read_to_string(&path).unwrap_or_default();
     let mut passwords = Vec::new();
-    let mut seven_zip_dir = String::new();
+    let mut sz_dir_windows = String::new();
+    let mut sz_dir_macos = String::new();
+    let mut sz_dir_legacy = String::new();
     let mut language = String::new();
+    let mut webdav_url = String::new();
+    let mut webdav_user = String::new();
+    let mut webdav_pass = String::new();
     let mut current_section = String::new();
 
     for line in content.lines() {
@@ -151,27 +170,62 @@ fn load_config() -> (Vec<String>, String, String, bool) {
         match current_section.as_str() {
             "passwords" => passwords.push(trimmed.to_string()),
             "settings" => {
-                if let Some(val) = trimmed.strip_prefix("7zip_dir=") {
-                    seven_zip_dir = val.trim().to_string();
+                if let Some(val) = trimmed.strip_prefix("7zip_dir_windows=") {
+                    sz_dir_windows = val.trim().to_string();
+                } else if let Some(val) = trimmed.strip_prefix("7zip_dir_macos=") {
+                    sz_dir_macos = val.trim().to_string();
+                } else if let Some(val) = trimmed.strip_prefix("7zip_dir=") {
+                    // Legacy key — migrate to current platform
+                    sz_dir_legacy = val.trim().to_string();
                 }
                 if let Some(val) = trimmed.strip_prefix("language=") {
                     language = val.trim().to_string();
                 }
             }
+            "webdav" => {
+                if let Some(val) = trimmed.strip_prefix("url=") {
+                    webdav_url = val.trim().to_string();
+                }
+                if let Some(val) = trimmed.strip_prefix("user=") {
+                    webdav_user = val.trim().to_string();
+                }
+                if let Some(val) = trimmed.strip_prefix("pass=") {
+                    webdav_pass = val.trim().to_string();
+                }
+            }
             _ => {}
         }
     }
+
+    // Migrate legacy 7zip_dir to current platform if new keys are empty
+    let cur_key = current_platform_key();
+    let mut migrated = false;
+    let (seven_zip_dir, seven_zip_dir_other) = if cur_key == "windows" {
+        let cur = if sz_dir_windows.is_empty() && !sz_dir_legacy.is_empty() { migrated = true; sz_dir_legacy.clone() } else { sz_dir_windows };
+        (cur, sz_dir_macos)
+    } else {
+        let cur = if sz_dir_macos.is_empty() && !sz_dir_legacy.is_empty() { migrated = true; sz_dir_legacy.clone() } else { sz_dir_macos };
+        (cur, sz_dir_windows)
+    };
+
     if seven_zip_dir.is_empty() {
         first_run = true;
     }
-    (passwords, seven_zip_dir, language, first_run)
+    (passwords, seven_zip_dir, seven_zip_dir_other, language, first_run, webdav_url, webdav_user, webdav_pass, migrated)
 }
 
-fn save_config(passwords: &[String], seven_zip_dir: &str, language: &str) -> Result<(), String> {
+fn save_config(passwords: &[String], seven_zip_dir: &str, seven_zip_dir_other: &str, language: &str, webdav_url: &str, webdav_user: &str, webdav_pass: &str) -> Result<(), String> {
     let path = ini_path();
+    let cur_key = current_platform_key();
+    let other_key = other_platform_key();
     let mut content = String::from("[settings]\n");
-    content.push_str(&format!("7zip_dir={}\n", seven_zip_dir));
+    content.push_str(&format!("7zip_dir_{}={}\n", cur_key, seven_zip_dir));
+    content.push_str(&format!("7zip_dir_{}={}\n", other_key, seven_zip_dir_other));
     content.push_str(&format!("language={}\n\n", language));
+    content.push_str("[webdav]\n");
+    content.push_str(&format!("url={}\n", webdav_url));
+    content.push_str(&format!("user={}\n", webdav_user));
+    content.push_str(&format!("pass={}\n\n", webdav_pass));
     content.push_str("[passwords]\n");
     for p in passwords {
         content.push_str(p);
@@ -181,6 +235,18 @@ fn save_config(passwords: &[String], seven_zip_dir: &str, language: &str) -> Res
 }
 
 // ── 密码命令 ──
+
+/// Helper: save full config from AppState
+fn save_all(state: &AppState) -> Result<(), String> {
+    let passwords = state.passwords.lock().unwrap();
+    let dir = state.seven_zip_dir.lock().unwrap();
+    let dir_other = state.seven_zip_dir_other.lock().unwrap();
+    let lang = state.language.lock().unwrap();
+    let wurl = state.webdav_url.lock().unwrap();
+    let wuser = state.webdav_user.lock().unwrap();
+    let wpass = state.webdav_pass.lock().unwrap();
+    save_config(&passwords, &dir, &dir_other, &lang, &wurl, &wuser, &wpass)
+}
 
 #[tauri::command]
 fn get_passwords(state: State<AppState>) -> Vec<String> {
@@ -193,11 +259,8 @@ fn save_passwords(state: State<AppState>, passwords: Vec<String>) -> Result<(), 
     let deduped: Vec<String> = passwords.into_iter().filter(|p| seen.insert(p.clone())).collect();
     let mut sorted = deduped;
     sorted.sort();
-    let mut stored = state.passwords.lock().unwrap();
-    *stored = sorted;
-    let dir = state.seven_zip_dir.lock().unwrap().clone();
-    let lang = state.language.lock().unwrap().clone();
-    save_config(&stored, &dir, &lang)
+    { *state.passwords.lock().unwrap() = sorted; }
+    save_all(&state)
 }
 
 // ── 7-Zip 路径命令 ──
@@ -209,11 +272,8 @@ fn get_seven_zip_dir(state: State<AppState>) -> String {
 
 #[tauri::command]
 fn save_seven_zip_dir(state: State<AppState>, dir: String) -> Result<(), String> {
-    let mut stored = state.seven_zip_dir.lock().unwrap();
-    *stored = dir.clone();
-    let passwords = state.passwords.lock().unwrap().clone();
-    let lang = state.language.lock().unwrap().clone();
-    let result = save_config(&passwords, &dir, &lang);
+    { *state.seven_zip_dir.lock().unwrap() = dir; }
+    let result = save_all(&state);
     if result.is_ok() {
         *state.needs_setup.lock().unwrap() = false;
     }
@@ -227,11 +287,8 @@ fn get_language(state: State<AppState>) -> String {
 
 #[tauri::command]
 fn save_language(state: State<AppState>, language: String) -> Result<(), String> {
-    let mut stored = state.language.lock().unwrap();
-    *stored = language.clone();
-    let passwords = state.passwords.lock().unwrap().clone();
-    let dir = state.seven_zip_dir.lock().unwrap().clone();
-    save_config(&passwords, &dir, &language)
+    { *state.language.lock().unwrap() = language; }
+    save_all(&state)
 }
 
 #[tauri::command]
@@ -301,6 +358,150 @@ fn get_seven_zip_version(dir: String) -> String {
 #[tauri::command]
 fn check_needs_setup(state: State<AppState>) -> bool {
     *state.needs_setup.lock().unwrap()
+}
+
+// ── WebDAV 同步 ──
+
+#[derive(Serialize, serde::Deserialize, Clone)]
+struct WebdavConfig {
+    url: String,
+    user: String,
+    pass: String,
+}
+
+#[tauri::command]
+fn get_webdav_config(state: State<AppState>) -> WebdavConfig {
+    WebdavConfig {
+        url: state.webdav_url.lock().unwrap().clone(),
+        user: state.webdav_user.lock().unwrap().clone(),
+        pass: state.webdav_pass.lock().unwrap().clone(),
+    }
+}
+
+#[tauri::command]
+fn save_webdav_config(state: State<AppState>, config: WebdavConfig) -> Result<(), String> {
+    {
+        *state.webdav_url.lock().unwrap() = config.url;
+        *state.webdav_user.lock().unwrap() = config.user;
+        *state.webdav_pass.lock().unwrap() = config.pass;
+    }
+    save_all(&state)
+}
+
+/// Build the WebDAV directory URL (append /YAUZ/ to the base URL)
+fn webdav_dir_url(base_url: &str) -> String {
+    let base = base_url.trim_end_matches('/');
+    format!("{}/YAUZ/", base)
+}
+
+/// Build the full WebDAV file URL (append /YAUZ/yauz_config.ini to the base URL)
+fn webdav_file_url(base_url: &str) -> String {
+    let base = base_url.trim_end_matches('/');
+    format!("{}/YAUZ/yauz_config.ini", base)
+}
+
+/// Test WebDAV connection by sending an OPTIONS request to the base URL.
+#[tauri::command]
+fn webdav_test(url: String, user: String, pass: String) -> Result<(), String> {
+    if url.is_empty() { return Err("URL is empty".to_string()); }
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client.request(reqwest::Method::OPTIONS, url.trim_end_matches('/'))
+        .basic_auth(&user, Some(&pass))
+        .send()
+        .map_err(|e| e.to_string())?;
+    if resp.status().is_success() {
+        Ok(())
+    } else if resp.status().as_u16() == 401 || resp.status().as_u16() == 403 {
+        Err("auth_fail".to_string())
+    } else {
+        Err(format!("HTTP {}", resp.status()))
+    }
+}
+
+/// Ensure the YAUZ directory exists on the WebDAV server (MKCOL)
+fn webdav_ensure_dir(client: &reqwest::blocking::Client, base_url: &str, user: &str, pass: &str) -> Result<(), String> {
+    let dir_url = webdav_dir_url(base_url);
+    let resp = client.request(reqwest::Method::from_bytes(b"MKCOL").unwrap(), &dir_url)
+        .basic_auth(user, Some(pass))
+        .send()
+        .map_err(|e| e.to_string())?;
+    let status = resp.status().as_u16();
+    // 201 Created, 405 Already exists, 301 redirect (some servers)
+    if status == 201 || status == 405 || resp.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("MKCOL HTTP {}", resp.status()))
+    }
+}
+
+#[tauri::command]
+fn webdav_push(state: State<AppState>) -> Result<(), String> {
+    let url = state.webdav_url.lock().unwrap().clone();
+    let user = state.webdav_user.lock().unwrap().clone();
+    let pass = state.webdav_pass.lock().unwrap().clone();
+    if url.is_empty() { return Err("WebDAV URL not configured".to_string()); }
+
+    let config_path = ini_path();
+    let body = fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
+
+    let client = reqwest::blocking::Client::new();
+
+    // Ensure remote YAUZ directory exists
+    webdav_ensure_dir(&client, &url, &user, &pass)?;
+
+    let resp = client.put(&webdav_file_url(&url))
+        .basic_auth(&user, Some(&pass))
+        .header("Content-Type", "text/plain; charset=utf-8")
+        .body(body)
+        .send()
+        .map_err(|e| e.to_string())?;
+
+    if resp.status().is_success() || resp.status().as_u16() == 201 || resp.status().as_u16() == 204 {
+        Ok(())
+    } else {
+        Err(format!("HTTP {}", resp.status()))
+    }
+}
+
+#[tauri::command]
+fn webdav_pull(state: State<AppState>) -> Result<(), String> {
+    let url = state.webdav_url.lock().unwrap().clone();
+    let user = state.webdav_user.lock().unwrap().clone();
+    let pass = state.webdav_pass.lock().unwrap().clone();
+    if url.is_empty() { return Err("WebDAV URL not configured".to_string()); }
+
+    let client = reqwest::blocking::Client::new();
+    let resp = client.get(&webdav_file_url(&url))
+        .basic_auth(&user, Some(&pass))
+        .send()
+        .map_err(|e| e.to_string())?;
+
+    if !resp.status().is_success() {
+        return Err(format!("HTTP {}", resp.status()));
+    }
+
+    let remote_content = resp.text().map_err(|e| e.to_string())?;
+
+    // Write remote content to local config file
+    let config_path = ini_path();
+    fs::write(&config_path, &remote_content).map_err(|e| e.to_string())?;
+
+    // Reload config into AppState
+    let (passwords, seven_zip_dir, seven_zip_dir_other, language, _, _, _, _, _) = load_config();
+    *state.passwords.lock().unwrap() = passwords;
+    *state.seven_zip_dir.lock().unwrap() = seven_zip_dir;
+    *state.seven_zip_dir_other.lock().unwrap() = seven_zip_dir_other;
+    *state.language.lock().unwrap() = language;
+    // WebDAV config comes from the pulled file too — reload it
+    let (_, _, _, _, _, wurl, wuser, wpass, _) = load_config();
+    *state.webdav_url.lock().unwrap() = wurl;
+    *state.webdav_user.lock().unwrap() = wuser;
+    *state.webdav_pass.lock().unwrap() = wpass;
+
+    Ok(())
 }
 
 // ── 解压逻辑 ──
@@ -545,14 +746,19 @@ fn extract_files(app: AppHandle, state: State<AppState>, files: Vec<String>, out
 }
 
 pub fn run() {
-    let (passwords, mut seven_zip_dir, language, mut needs_setup) = load_config();
+    let (passwords, mut seven_zip_dir, seven_zip_dir_other, language, mut needs_setup, webdav_url, webdav_user, webdav_pass, migrated) = load_config();
+
+    // If legacy 7zip_dir was migrated, re-save to remove the old key
+    if migrated {
+        let _ = save_config(&passwords, &seven_zip_dir, &seven_zip_dir_other, &language, &webdav_url, &webdav_user, &webdav_pass);
+    }
 
     // If a manual 7z path is configured but invalid, clear it and fall back
     if !seven_zip_dir.is_empty() {
         let exe = resolve_seven_zip_exe(&seven_zip_dir);
         if !exe.exists() {
             seven_zip_dir = String::new();
-            let _ = save_config(&passwords, "", &language);
+            let _ = save_config(&passwords, "", &seven_zip_dir_other, &language, &webdav_url, &webdav_user, &webdav_pass);
             // Re-evaluate setup need since the saved path was invalid
             needs_setup = true;
         }
@@ -569,14 +775,19 @@ pub fn run() {
         .manage(AppState {
             passwords: Mutex::new(passwords),
             seven_zip_dir: Mutex::new(seven_zip_dir),
+            seven_zip_dir_other: Mutex::new(seven_zip_dir_other),
             language: Mutex::new(language),
             needs_setup: Mutex::new(needs_setup),
+            webdav_url: Mutex::new(webdav_url),
+            webdav_user: Mutex::new(webdav_user),
+            webdav_pass: Mutex::new(webdav_pass),
         })
         .invoke_handler(tauri::generate_handler![
             get_passwords, save_passwords,
             get_seven_zip_dir, save_seven_zip_dir, check_seven_zip_dir, get_seven_zip_version,
             get_language, save_language,
             check_needs_setup, detect_seven_zip_in_path,
+            get_webdav_config, save_webdav_config, webdav_test, webdav_push, webdav_pull,
             extract_files
         ])
         .run(tauri::generate_context!())

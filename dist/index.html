@@ -196,15 +196,7 @@
         <p id="pwStatus" class="status-text"></p>
       </div>
       <div class="settings-col right">
-        <div style="display:flex; align-items:center; gap:0.5rem;">
-          <h2 data-i18n="sz_title" style="flex:1;"></h2>
-          <label id="szOverrideLabel" style="display:none; font-size:0.8rem; color:var(--fg2); cursor:pointer; white-space:nowrap;">
-            <input type="checkbox" id="szOverride" style="cursor:pointer; vertical-align:middle;" /> <span data-i18n="sz_override"></span>
-          </label>
-        </div>
-        <input class="path-input" id="szDir" autocomplete="off" />
-        <p id="szStatus" class="status-text"></p>
-        <h2 data-i18n="lang_title" style="margin-top:1.5rem;"></h2>
+        <h2 data-i18n="lang_title"></h2>
         <select id="langSelect" style="
           width:100%; padding:0.5rem 0.75rem;
           border:1px solid var(--input-border); border-radius:6px;
@@ -216,16 +208,44 @@
           <option value="zh-TW">繁體中文</option>
           <option value="en-GB">English (UK)</option>
         </select>
-        <p style="margin-top:auto; padding-top:1rem; font-size:0.8rem; color:var(--fg2);">
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-top:1.5rem;">
+          <h2 data-i18n="sz_title" style="flex:1;"></h2>
+          <label id="szOverrideLabel" style="display:none; font-size:0.8rem; color:var(--fg2); cursor:pointer; white-space:nowrap;">
+            <input type="checkbox" id="szOverride" style="cursor:pointer; vertical-align:middle;" /> <span data-i18n="sz_override"></span>
+          </label>
+        </div>
+        <input class="path-input" id="szDir" autocomplete="off" />
+        <p id="szStatus" class="status-text"></p>
+        <h2 data-i18n="dav_title" style="margin-top:1.5rem;"></h2>
+        <p class="desc" data-i18n="dav_desc" style="color:var(--fg2); font-size:0.85rem; margin-bottom:0.5rem;"></p>
+        <input class="path-input" id="davUrl" autocomplete="off" style="margin-bottom:0.4rem;" />
+        <input class="path-input" id="davUser" autocomplete="off" style="margin-bottom:0.4rem;" />
+        <input class="path-input" id="davPass" type="password" autocomplete="off" style="margin-bottom:0.4rem;" />
+        <div id="davSyncBtns" style="display:none; gap:0.5rem; margin-bottom:0.4rem;">
+          <button id="davPull" style="
+            flex:1; padding:0.4rem; border-radius:4px; border:1px solid var(--input-border);
+            background:var(--input-bg); color:var(--fg); cursor:pointer;
+            font-family:inherit; font-size:0.8rem;
+          "></button>
+          <button id="davPush" style="
+            flex:1; padding:0.4rem; border-radius:4px; border:1px solid var(--input-border);
+            background:var(--input-bg); color:var(--fg); cursor:pointer;
+            font-family:inherit; font-size:0.8rem;
+          "></button>
+        </div>
+        <p id="davStatus" class="status-text"></p>
+        <p style="margin-top:auto; padding-top:1rem;">
           <button id="saveSettingsBtn" data-i18n="save_btn" style="
             display:none; width:100%; padding:0.5rem; border-radius:4px; border:none;
             background:var(--accent); color:#fff; cursor:pointer;
-            font-family:inherit; font-size:0.85rem; margin-bottom:1rem;
+            font-family:inherit; font-size:0.85rem; margin-bottom:0.75rem;
           "></button>
-          <span data-i18n="font_credit"></span>
-          <a href="https://font.subf.dev/" target="_blank" style="color:var(--accent); text-decoration:none;">font.subf.dev</a><br>
-          <span data-i18n="icon_credit"></span>
-          <a href="https://www.svgrepo.com/svg/526457/zip-file" target="_blank" style="color:var(--accent); text-decoration:none;">svgrepo.com</a>
+          <span style="font-size:0.7rem; color:var(--fg2); opacity:0.7;">
+            <span data-i18n="font_credit"></span>
+            <a href="https://font.subf.dev/" target="_blank" style="color:var(--accent); text-decoration:none;">font.subf.dev</a><br>
+            <span data-i18n="icon_credit"></span>
+            <a href="https://www.svgrepo.com/svg/526457/zip-file" target="_blank" style="color:var(--accent); text-decoration:none;">svgrepo.com</a>
+          </span>
         </p>
       </div>
     </div>
@@ -273,6 +293,19 @@
         icon_credit: "图标: SVG Repo",
         setup_desc: "首次使用，请指定 7-Zip 或 7-Zip ZS 可执行文件所在的文件夹路径",
         setup_confirm: "确认", setup_quit: "退出",
+        dav_title: "WebDAV 同步", dav_desc: "通过 WebDAV 在多台设备间同步设置",
+        dav_url_placeholder: "WebDAV URL",
+        dav_user_placeholder: "用户名",
+        dav_pass_placeholder: "密码",
+        dav_pull: "↓ 拉取", dav_push: "↑ 推送",
+        dav_pulling: "正在拉取...", dav_pushing: "正在推送...",
+        dav_pull_ok: "拉取成功，设置已更新",
+        dav_push_ok: "推送成功",
+        dav_fail: (e) => `同步失败: ${e}`,
+        dav_saved: "WebDAV 设置已保存",
+        dav_validating: "正在验证连接...",
+        dav_auth_fail: "认证失败，请检查用户名和密码",
+        dav_connect_fail: (e) => `连接失败: ${e}`,
       },
       "zh-TW": {
         nav_main: "主介面", nav_settings: "設定",
@@ -313,6 +346,19 @@
         icon_credit: "圖示: SVG Repo",
         setup_desc: "首次使用，請指定 7-Zip 或 7-Zip ZS 可執行檔所在的資料夾路徑",
         setup_confirm: "確認", setup_quit: "退出",
+        dav_title: "WebDAV 同步", dav_desc: "透過 WebDAV 在多台裝置間同步設定",
+        dav_url_placeholder: "WebDAV URL",
+        dav_user_placeholder: "使用者名稱",
+        dav_pass_placeholder: "密碼",
+        dav_pull: "↓ 拉取", dav_push: "↑ 推送",
+        dav_pulling: "正在拉取...", dav_pushing: "正在推送...",
+        dav_pull_ok: "拉取成功，設定已更新",
+        dav_push_ok: "推送成功",
+        dav_fail: (e) => `同步失敗: ${e}`,
+        dav_saved: "WebDAV 設定已儲存",
+        dav_validating: "正在驗證連線...",
+        dav_auth_fail: "驗證失敗，請檢查使用者名稱和密碼",
+        dav_connect_fail: (e) => `連線失敗: ${e}`,
       },
       "en-GB": {
         nav_main: "Home", nav_settings: "Settings",
@@ -353,6 +399,19 @@
         icon_credit: "Icon: SVG Repo",
         setup_desc: "First run — please specify the folder containing the 7-Zip or 7-Zip ZS executable",
         setup_confirm: "Confirm", setup_quit: "Quit",
+        dav_title: "WebDAV Sync", dav_desc: "Sync settings across devices via WebDAV",
+        dav_url_placeholder: "WebDAV URL",
+        dav_user_placeholder: "Username",
+        dav_pass_placeholder: "Password",
+        dav_pull: "↓ Pull", dav_push: "↑ Push",
+        dav_pulling: "Pulling...", dav_pushing: "Pushing...",
+        dav_pull_ok: "Pull successful, settings updated",
+        dav_push_ok: "Push successful",
+        dav_fail: (e) => `Sync failed: ${e}`,
+        dav_saved: "WebDAV settings saved",
+        dav_validating: "Validating connection...",
+        dav_auth_fail: "Authentication failed, please check username and password",
+        dav_connect_fail: (e) => `Connection failed: ${e}`,
       }
     };
 
@@ -385,6 +444,11 @@
       document.getElementById("setupSzDir").placeholder = t.sz_placeholder;
       document.getElementById("setupDesc").textContent = t.setup_desc;
       document.getElementById("setupConfirm").textContent = t.setup_confirm;
+      document.getElementById("davUrl").placeholder = t.dav_url_placeholder;
+      document.getElementById("davUser").placeholder = t.dav_user_placeholder;
+      document.getElementById("davPass").placeholder = t.dav_pass_placeholder;
+      document.getElementById("davPull").textContent = t.dav_pull;
+      document.getElementById("davPush").textContent = t.dav_push;
       document.documentElement.lang = lang;
     }
     applyI18n();
@@ -434,23 +498,24 @@
 
     // ── 脏状态追踪 ──
     const saveBtn = document.getElementById("saveSettingsBtn");
-    let savedSnapshot = { pw: "", sz: "", lang: "" };
+    let savedSnapshot = { pw: "", sz: "", lang: "", davUrl: "", davUser: "", davPass: "" };
     let szValid = true;
 
     function takeSnapshot() {
-      savedSnapshot = { pw: textarea.value, sz: szDir.value, lang: savedLangPref };
+      savedSnapshot = { pw: textarea.value, sz: szDir.value, lang: savedLangPref, davUrl: davUrl.value, davUser: davUser.value, davPass: davPass.value };
     }
     function checkDirty() {
       const pwDirty = textarea.value !== savedSnapshot.pw;
       const szDirty = szDir.value !== savedSnapshot.sz;
       const langDirty = langSelect.value !== savedSnapshot.lang;
-      const otherDirty = pwDirty || langDirty;
+      const davDirty = davUrl.value !== savedSnapshot.davUrl || davUser.value !== savedSnapshot.davUser || davPass.value !== savedSnapshot.davPass;
+      const otherDirty = pwDirty || langDirty || davDirty;
       // If only sz changed and it's invalid, don't show save button
       if (szDirty && !szValid && !otherDirty) {
         saveBtn.style.display = "none";
         return;
       }
-      const dirty = pwDirty || szDirty || langDirty;
+      const dirty = pwDirty || szDirty || langDirty || davDirty;
       saveBtn.style.display = dirty ? "block" : "none";
     }
 
@@ -599,7 +664,117 @@
     langSelect.addEventListener("change", () => {
       checkDirty();
     });
-    loadLanguage().then(() => Promise.all([loadPasswords(), loadSzDir()])).then(() => takeSnapshot());
+
+    // ── WebDAV 同步 ──
+    const davUrl = document.getElementById("davUrl");
+    const davUser = document.getElementById("davUser");
+    const davPass = document.getElementById("davPass");
+    const davStatus = document.getElementById("davStatus");
+    const davSyncBtns = document.getElementById("davSyncBtns");
+    let davVerified = false;
+
+    function updateDavButtons() {
+      davSyncBtns.style.display = davVerified ? "flex" : "none";
+    }
+
+    async function loadWebdav() {
+      try {
+        const cfg = await invoke("get_webdav_config");
+        davUrl.value = cfg.url || "";
+        davUser.value = cfg.user || "";
+        davPass.value = cfg.pass || "";
+        // If config exists, assume previously verified
+        davVerified = !!(cfg.url && cfg.user);
+        updateDavButtons();
+      } catch (e) { /* ignore */ }
+    }
+
+    async function validateAndSaveWebdav() {
+      const url = davUrl.value.trim();
+      const user = davUser.value.trim();
+      const pass = davPass.value;
+      if (!url) {
+        // Empty URL = clear WebDAV config
+        davVerified = false;
+        updateDavButtons();
+        davStatus.textContent = "";
+        await invoke("save_webdav_config", { config: { url: "", user: "", pass: "" } });
+        return true;
+      }
+      davStatus.textContent = t.dav_validating;
+      davStatus.style.color = "var(--fg2)";
+      try {
+        await invoke("webdav_test", { url, user, pass });
+        await invoke("save_webdav_config", { config: { url, user, pass } });
+        davVerified = true;
+        updateDavButtons();
+        davStatus.textContent = t.dav_saved;
+        davStatus.style.color = "var(--success)";
+        return true;
+      } catch (e) {
+        davVerified = false;
+        updateDavButtons();
+        if (e === "auth_fail") {
+          davStatus.textContent = t.dav_auth_fail;
+        } else {
+          davStatus.textContent = t.dav_connect_fail(e);
+        }
+        davStatus.style.color = "var(--error)";
+        return false;
+      }
+    }
+
+    async function saveWebdavConfig() {
+      try {
+        await invoke("save_webdav_config", {
+          config: { url: davUrl.value.trim(), user: davUser.value.trim(), pass: davPass.value }
+        });
+      } catch (e) { /* ignore */ }
+    }
+
+    // Track WebDAV field changes for dirty state
+    [davUrl, davUser, davPass].forEach(el => {
+      el.addEventListener("input", () => {
+        davVerified = false;
+        updateDavButtons();
+        davStatus.textContent = "";
+        checkDirty();
+      });
+    });
+
+    document.getElementById("davPush").addEventListener("click", async () => {
+      // Save current settings first, then push
+      await saveWebdavConfig();
+      davStatus.textContent = t.dav_pushing;
+      davStatus.style.color = "var(--fg2)";
+      try {
+        await invoke("webdav_push");
+        davStatus.textContent = t.dav_push_ok;
+        davStatus.style.color = "var(--success)";
+      } catch (e) {
+        davStatus.textContent = t.dav_fail(e);
+        davStatus.style.color = "var(--error)";
+      }
+    });
+
+    document.getElementById("davPull").addEventListener("click", async () => {
+      await saveWebdavConfig();
+      davStatus.textContent = t.dav_pulling;
+      davStatus.style.color = "var(--fg2)";
+      try {
+        await invoke("webdav_pull");
+        davStatus.textContent = t.dav_pull_ok;
+        davStatus.style.color = "var(--success)";
+        // Reload all settings into UI
+        await Promise.all([loadPasswords(), loadSzDir(), loadLanguage(), loadWebdav()]);
+        takeSnapshot();
+      } catch (e) {
+        davStatus.textContent = t.dav_fail(e);
+        davStatus.style.color = "var(--error)";
+      }
+    });
+
+    loadLanguage().then(() => Promise.all([loadPasswords(), loadSzDir(), loadWebdav()])).then(() => takeSnapshot());
 
     // ── 手动保存 ──
     document.getElementById("saveSettingsBtn").addEventListener("click", async () => {
@@ -616,8 +791,16 @@
       applyI18n();
       updatePwCount();
       try { await invoke("save_language", { language: langVal }); } catch (e) { /* ignore */ }
+      // Validate and save WebDAV config
+      const davOk = await validateAndSaveWebdav();
+      if (!davOk) {
+        // WebDAV validation failed — still save other settings but notify
+      }
       savedSnapshot.pw = textarea.value;
       savedSnapshot.lang = langVal;
+      savedSnapshot.davUrl = davUrl.value;
+      savedSnapshot.davUser = davUser.value;
+      savedSnapshot.davPass = davPass.value;
       if (!szFromPath || szOverride.checked) { if (szValid) savedSnapshot.sz = szDir.value; }
       checkDirty();
       showToast(t.saved_all);
