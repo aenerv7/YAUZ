@@ -196,7 +196,12 @@
         <p id="pwStatus" class="status-text"></p>
       </div>
       <div class="settings-col right">
-        <h2 data-i18n="sz_title"></h2>
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <h2 data-i18n="sz_title" style="flex:1;"></h2>
+          <label id="szOverrideLabel" style="display:none; font-size:0.8rem; color:var(--fg2); cursor:pointer; white-space:nowrap;">
+            <input type="checkbox" id="szOverride" style="cursor:pointer; vertical-align:middle;" /> <span data-i18n="sz_override"></span>
+          </label>
+        </div>
         <input class="path-input" id="szDir" autocomplete="off" />
         <p id="szStatus" class="status-text"></p>
         <h2 data-i18n="lang_title" style="margin-top:1.5rem;"></h2>
@@ -252,6 +257,8 @@
         sz_placeholder: "例如: C:\\Program Files\\7-Zip 或 /opt/homebrew/bin",
         sz_invalid: "路径无效：未找到 7-Zip 或 7-Zip ZS 可执行文件",
         sz_version: (v) => `7-Zip 版本: ${v}`,
+        sz_from_path: (dir) => `已从系统环境变量检测到 7-Zip: ${dir}`,
+        sz_override: "手动指定",
         saving: "保存中...",
         save_btn: "保存设置",
         saved_all: "设置已保存",
@@ -290,6 +297,8 @@
         sz_placeholder: "例如: C:\\Program Files\\7-Zip 或 /opt/homebrew/bin",
         sz_invalid: "路徑無效：未找到 7-Zip 或 7-Zip ZS 可執行檔",
         sz_version: (v) => `7-Zip 版本: ${v}`,
+        sz_from_path: (dir) => `已從系統環境變數偵測到 7-Zip: ${dir}`,
+        sz_override: "手動指定",
         saving: "儲存中...",
         save_btn: "儲存設定",
         saved_all: "設定已儲存",
@@ -328,6 +337,8 @@
         sz_placeholder: "e.g. C:\\Program Files\\7-Zip or /opt/homebrew/bin",
         sz_invalid: "Invalid path: 7-Zip or 7-Zip ZS executable not found",
         sz_version: (v) => `7-Zip version: ${v}`,
+        sz_from_path: (dir) => `7-Zip detected in system PATH: ${dir}`,
+        sz_override: "Override",
         saving: "Saving...",
         save_btn: "Save Settings",
         saved_all: "Settings saved",
@@ -479,6 +490,15 @@
     // ── 7-Zip 路径 ──
     const szDir = document.getElementById("szDir");
     const szStatus = document.getElementById("szStatus");
+    const szOverrideLabel = document.getElementById("szOverrideLabel");
+    const szOverride = document.getElementById("szOverride");
+    let szFromPath = ""; // non-empty if 7z detected in system PATH
+
+    function setSzReadOnly(readonly) {
+      szDir.readOnly = readonly;
+      szDir.style.opacity = readonly ? "0.7" : "";
+      szDir.style.cursor = readonly ? "default" : "";
+    }
 
     async function updateSzVersion(dir) {
       const ver = await invoke("get_seven_zip_version", { dir });
@@ -487,9 +507,56 @@
     }
 
     async function loadSzDir() {
-      try { szDir.value = await invoke("get_seven_zip_dir"); await validateSzDir(); }
+      try {
+        // Check system PATH first
+        szFromPath = await invoke("detect_seven_zip_in_path");
+        if (szFromPath) {
+          szOverrideLabel.style.display = "";
+          const savedDir = await invoke("get_seven_zip_dir");
+          if (savedDir) {
+            // User previously overrode — restore override state
+            szOverride.checked = true;
+            szDir.value = savedDir;
+            setSzReadOnly(false);
+            await validateSzDir();
+          } else {
+            szOverride.checked = false;
+            szDir.value = szFromPath;
+            setSzReadOnly(true);
+            szValid = true;
+            szStatus.textContent = t.sz_from_path(szFromPath);
+            szStatus.style.color = "var(--success)";
+            await updateSzVersion("");
+          }
+          return;
+        }
+        szDir.value = await invoke("get_seven_zip_dir");
+        await validateSzDir();
+      }
       catch (e) { szStatus.textContent = t.load_fail(e); szStatus.style.color = "var(--error)"; }
     }
+
+    szOverride.addEventListener("change", async () => {
+      if (szOverride.checked) {
+        szDir.value = "";
+        setSzReadOnly(false);
+        szDir.focus();
+        szValid = false;
+        szStatus.textContent = "";
+        szDir.style.borderColor = "";
+      } else {
+        szDir.value = szFromPath;
+        setSzReadOnly(true);
+        szValid = true;
+        szStatus.textContent = t.sz_from_path(szFromPath);
+        szStatus.style.color = "var(--success)";
+        szDir.style.borderColor = "";
+        // Clear saved override path
+        await invoke("save_seven_zip_dir", { dir: "" });
+        await updateSzVersion("");
+      }
+      checkDirty();
+    });
     async function validateSzDir() {
       const dir = szDir.value.trim();
       const valid = await invoke("check_seven_zip_dir", { dir });
@@ -537,7 +604,12 @@
     // ── 手动保存 ──
     document.getElementById("saveSettingsBtn").addEventListener("click", async () => {
       await savePasswords();
-      if (szValid) { await saveSzDir(); }
+      if (szFromPath && !szOverride.checked) {
+        // Using PATH-detected 7z, clear saved dir
+        await invoke("save_seven_zip_dir", { dir: "" });
+      } else if (szValid) {
+        await saveSzDir();
+      }
       const langVal = langSelect.value;
       savedLangPref = langVal;
       lang = (langVal === "auto") ? detectLang() : langVal;
@@ -546,7 +618,7 @@
       try { await invoke("save_language", { language: langVal }); } catch (e) { /* ignore */ }
       savedSnapshot.pw = textarea.value;
       savedSnapshot.lang = langVal;
-      if (szValid) { savedSnapshot.sz = szDir.value; }
+      if (!szFromPath || szOverride.checked) { if (szValid) savedSnapshot.sz = szDir.value; }
       checkDirty();
       showToast(t.saved_all);
     });

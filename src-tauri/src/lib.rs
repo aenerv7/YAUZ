@@ -85,6 +85,26 @@ fn resolve_seven_zip_exe(dir: &str) -> PathBuf {
     }
 }
 
+/// Search for 7z/7zz in system PATH. Returns the full path if found.
+fn find_seven_zip_in_path() -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    let names = ["7z.exe", "7zz.exe"];
+    #[cfg(not(target_os = "windows"))]
+    let names = ["7z", "7zz"];
+
+    if let Some(path_var) = std::env::var_os("PATH") {
+        for dir in std::env::split_paths(&path_var) {
+            for name in &names {
+                let candidate = dir.join(name);
+                if candidate.exists() {
+                    return Some(candidate);
+                }
+            }
+        }
+    }
+    None
+}
+
 // ── INI 读写 ──
 
 fn load_config() -> (Vec<String>, String, String, bool) {
@@ -199,10 +219,30 @@ fn check_seven_zip_dir(dir: String) -> bool {
     exe.exists()
 }
 
+/// Check if 7z is available in system PATH.
+/// Returns the directory containing the executable, or empty string if not found.
+#[tauri::command]
+fn detect_seven_zip_in_path() -> String {
+    match find_seven_zip_in_path() {
+        Some(exe_path) => exe_path.parent()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default(),
+        None => String::new(),
+    }
+}
+
 #[tauri::command]
 fn get_seven_zip_version(dir: String) -> String {
-    let exe = resolve_seven_zip_exe(&dir);
-    if !exe.exists() { return "?".to_string(); }
+    let exe = if dir.is_empty() {
+        match find_seven_zip_in_path() {
+            Some(p) => p,
+            None => return "?".to_string(),
+        }
+    } else {
+        let e = resolve_seven_zip_exe(&dir);
+        if !e.exists() { return "?".to_string(); }
+        e
+    };
     let mut cmd = Command::new(&exe);
     cmd.args(["i"]);
     #[cfg(target_os = "windows")]
@@ -411,7 +451,12 @@ fn try_extract(sz: &PathBuf, archive: &str, out_dir: &str, password: Option<&str
 fn extract_files(app: AppHandle, state: State<AppState>, files: Vec<String>, out_dir: String) {
     let dir = state.seven_zip_dir.lock().unwrap().clone();
     let passwords = state.passwords.lock().unwrap().clone();
-    let sz = resolve_seven_zip_exe(&dir);
+    let sz = if dir.is_empty() {
+        // No configured dir — try system PATH
+        find_seven_zip_in_path().unwrap_or_default()
+    } else {
+        resolve_seven_zip_exe(&dir)
+    };
 
     std::thread::spawn(move || {
         if !sz.exists() {
@@ -479,7 +524,13 @@ fn extract_files(app: AppHandle, state: State<AppState>, files: Vec<String>, out
 }
 
 pub fn run() {
-    let (passwords, seven_zip_dir, language, needs_setup) = load_config();
+    let (passwords, seven_zip_dir, language, mut needs_setup) = load_config();
+
+    // If 7z is found in system PATH, skip setup (user can still override in settings)
+    if find_seven_zip_in_path().is_some() {
+        needs_setup = false;
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
@@ -493,7 +544,7 @@ pub fn run() {
             get_passwords, save_passwords,
             get_seven_zip_dir, save_seven_zip_dir, check_seven_zip_dir, get_seven_zip_version,
             get_language, save_language,
-            check_needs_setup,
+            check_needs_setup, detect_seven_zip_in_path,
             extract_files
         ])
         .run(tauri::generate_context!())
