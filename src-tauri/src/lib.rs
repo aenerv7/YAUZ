@@ -11,7 +11,7 @@ use tauri::{State, AppHandle, Emitter};
 
 #[cfg(target_os = "macos")]
 fn setup_macos_menu(app: &tauri::App, lang: &str) -> Result<(), Box<dyn std::error::Error>> {
-    use tauri::menu::{MenuBuilder, SubmenuBuilder, PredefinedMenuItem, AboutMetadataBuilder};
+    use tauri::menu::{MenuBuilder, SubmenuBuilder, PredefinedMenuItem};
 
     struct MenuText {
         edit: &'static str,
@@ -25,7 +25,6 @@ fn setup_macos_menu(app: &tauri::App, lang: &str) -> Result<(), Box<dyn std::err
         minimize: &'static str,
         zoom: &'static str,
         close: &'static str,
-        front: &'static str,
         hide: &'static str,
         hide_others: &'static str,
         show_all: &'static str,
@@ -38,7 +37,7 @@ fn setup_macos_menu(app: &tauri::App, lang: &str) -> Result<(), Box<dyn std::err
             edit: "编辑", undo: "撤销", redo: "重做", cut: "剪切", copy: "拷贝",
             paste: "粘贴", select_all: "全选",
             window: "窗口", minimize: "最小化", zoom: "缩放",
-            close: "关闭", front: "前置全部窗口",
+            close: "关闭",
             hide: "隐藏 YAUZ", hide_others: "隐藏其他", show_all: "显示全部",
             quit: "退出 YAUZ", services: "服务",
         },
@@ -46,7 +45,7 @@ fn setup_macos_menu(app: &tauri::App, lang: &str) -> Result<(), Box<dyn std::err
             edit: "編輯", undo: "還原", redo: "重做", cut: "剪下", copy: "拷貝",
             paste: "貼上", select_all: "全選",
             window: "視窗", minimize: "縮到最小", zoom: "縮放",
-            close: "關閉", front: "將所有視窗移至最前",
+            close: "關閉",
             hide: "隱藏 YAUZ", hide_others: "隱藏其他", show_all: "顯示全部",
             quit: "結束 YAUZ", services: "服務",
         },
@@ -54,16 +53,14 @@ fn setup_macos_menu(app: &tauri::App, lang: &str) -> Result<(), Box<dyn std::err
             edit: "Edit", undo: "Undo", redo: "Redo", cut: "Cut", copy: "Copy",
             paste: "Paste", select_all: "Select All",
             window: "Window", minimize: "Minimise", zoom: "Zoom",
-            close: "Close", front: "Bring All to Front",
+            close: "Close",
             hide: "Hide YAUZ", hide_others: "Hide Others", show_all: "Show All",
             quit: "Quit YAUZ", services: "Services",
         },
     };
 
-    let about_metadata = AboutMetadataBuilder::new().build();
-
     let app_submenu = SubmenuBuilder::new(app, "YAUZ")
-        .about(Some(about_metadata))
+        .about(None)
         .separator()
         .item(&PredefinedMenuItem::services(app, Some(t.services))?)
         .separator()
@@ -89,8 +86,6 @@ fn setup_macos_menu(app: &tauri::App, lang: &str) -> Result<(), Box<dyn std::err
         .item(&PredefinedMenuItem::maximize(app, Some(t.zoom))?)
         .separator()
         .item(&PredefinedMenuItem::close_window(app, Some(t.close))?)
-        .separator()
-        .item(&PredefinedMenuItem::bring_all_to_front(app, Some(t.front))?)
         .build()?;
 
     let menu = MenuBuilder::new(app)
