@@ -51,6 +51,9 @@ jobs:
       - name: Prepare macOS artifact
         if: matrix.os == 'macos-latest'
         run: |
+          APP="src-tauri/target/${{ matrix.target }}/release/bundle/macos/YAUZ.app"
+          RESOURCES="$APP/Contents/Resources"
+          mkdir -p "$RESOURCES/zh-Hans.lproj" "$RESOURCES/zh-Hant.lproj" "$RESOURCES/en.lproj"
           cd "src-tauri/target/${{ matrix.target }}/release/bundle/macos"
           zip -r "$GITHUB_WORKSPACE/YAUZ-macos-arm64.zip" YAUZ.app
 
