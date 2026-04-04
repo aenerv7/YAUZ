@@ -10,15 +10,15 @@ use tauri::{State, AppHandle, Emitter};
 // ── macOS 菜单本地化 ──
 
 #[cfg(target_os = "macos")]
-fn build_macos_menu(app: &tauri::AppHandle, lang: &str) -> Result<Option<tauri::menu::Menu<tauri::Wry>>, Box<dyn std::error::Error>> {
-    use tauri::menu::{Menu, Submenu, PredefinedMenuItem, WINDOW_SUBMENU_ID, HELP_SUBMENU_ID};
+fn build_macos_menu(app: &tauri::AppHandle, lang: &str) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+    use tauri::menu::{Menu, Submenu, MenuItem, PredefinedMenuItem, WINDOW_SUBMENU_ID};
 
     struct T {
         file: &'static str,
+        open_file: &'static str,
         edit: &'static str,
         view: &'static str,
         window: &'static str,
-        help: &'static str,
         undo: &'static str,
         redo: &'static str,
         cut: &'static str,
@@ -37,7 +37,8 @@ fn build_macos_menu(app: &tauri::AppHandle, lang: &str) -> Result<Option<tauri::
 
     let t = match lang {
         "zh-CN" => T {
-            file: "文件", edit: "编辑", view: "显示", window: "窗口", help: "帮助",
+            file: "文件", open_file: "打开文件...",
+            edit: "编辑", view: "显示", window: "窗口",
             undo: "撤销", redo: "重做", cut: "剪切", copy: "拷贝",
             paste: "粘贴", select_all: "全选",
             minimize: "最小化", zoom: "缩放", fullscreen: "进入全屏幕",
@@ -46,7 +47,8 @@ fn build_macos_menu(app: &tauri::AppHandle, lang: &str) -> Result<Option<tauri::
             quit: "退出 YAUZ", services: "服务",
         },
         "zh-TW" => T {
-            file: "檔案", edit: "編輯", view: "顯示方式", window: "視窗", help: "輔助說明",
+            file: "檔案", open_file: "開啟檔案...",
+            edit: "編輯", view: "顯示方式", window: "視窗",
             undo: "還原", redo: "重做", cut: "剪下", copy: "拷貝",
             paste: "貼上", select_all: "全選",
             minimize: "縮到最小", zoom: "縮放", fullscreen: "進入全螢幕",
@@ -54,7 +56,16 @@ fn build_macos_menu(app: &tauri::AppHandle, lang: &str) -> Result<Option<tauri::
             hide: "隱藏 YAUZ", hide_others: "隱藏其他",
             quit: "結束 YAUZ", services: "服務",
         },
-        _ => return Ok(None), // English — use Tauri default menu
+        _ => T {
+            file: "File", open_file: "Open File...",
+            edit: "Edit", view: "View", window: "Window",
+            undo: "Undo", redo: "Redo", cut: "Cut", copy: "Copy",
+            paste: "Paste", select_all: "Select All",
+            minimize: "Minimise", zoom: "Zoom", fullscreen: "Enter Full Screen",
+            close: "Close Window",
+            hide: "Hide YAUZ", hide_others: "Hide Others",
+            quit: "Quit YAUZ", services: "Services",
+        },
     };
 
     let pkg_info = app.package_info();
@@ -78,9 +89,10 @@ fn build_macos_menu(app: &tauri::AppHandle, lang: &str) -> Result<Option<tauri::
         ],
     )?;
 
+    let open_item = MenuItem::with_id(app, "open_file", t.open_file, true, Some("CmdOrCtrl+O"))?;
     let file_submenu = Submenu::with_items(
         app, t.file, true,
-        &[&PredefinedMenuItem::close_window(app, Some(t.close))?],
+        &[&open_item],
     )?;
 
     let edit_submenu = Submenu::with_items(
@@ -111,16 +123,10 @@ fn build_macos_menu(app: &tauri::AppHandle, lang: &str) -> Result<Option<tauri::
         ],
     )?;
 
-    let help_submenu = Submenu::with_id_and_items(
-        app, HELP_SUBMENU_ID, t.help, true, &[],
-    )?;
-
-    let menu = Menu::with_items(
+    Menu::with_items(
         app,
-        &[&app_submenu, &file_submenu, &edit_submenu, &view_submenu, &window_submenu, &help_submenu],
-    )?;
-
-    Ok(Some(menu))
+        &[&app_submenu, &file_submenu, &edit_submenu, &view_submenu, &window_submenu],
+    )
 }
 
 struct AppState {
@@ -903,12 +909,14 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .menu(move |app| {
             #[cfg(target_os = "macos")]
-            {
-                if let Ok(Some(m)) = build_macos_menu(app, &menu_lang) {
-                    return Ok(m);
-                }
-            }
+            { return build_macos_menu(app, &menu_lang); }
+            #[cfg(not(target_os = "macos"))]
             tauri::menu::Menu::default(app)
+        })
+        .on_menu_event(|app, event| {
+            if event.id().as_ref() == "open_file" {
+                let _ = app.emit("menu-open-file", ());
+            }
         })
         .manage(AppState {
             passwords: Mutex::new(passwords),

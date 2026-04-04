@@ -982,14 +982,18 @@
 
     // ── 双击选择文件 ──
     const { open: openDialog } = window.__TAURI__.dialog;
-    dropZone.addEventListener("dblclick", async () => {
+    async function openFileDialog() {
       if (busy) return;
       const selected = await openDialog({
         multiple: true, directory: false
       });
       if (!selected) return;
       await handleFiles(Array.isArray(selected) ? selected : [selected]);
-    });
+    }
+    dropZone.addEventListener("dblclick", openFileDialog);
+
+    // ── 菜单打开文件 ──
+    listen("menu-open-file", openFileDialog);
 
     // ── 窗口就绪后显示 ──
     window.__TAURI__.window.getCurrentWindow().show();
