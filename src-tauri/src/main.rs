@@ -50,12 +50,12 @@ fn show_webview2_missing_dialog() {
     }
 
     let title = wide("YAUZ");
-    let text = wide(
-        "YAUZ requires the Microsoft Edge WebView2 Runtime, which is not installed on this system.\n\n\
-         Click OK to open the download page, then install the runtime and relaunch YAUZ.\n\n\
-         YAUZ 需要 Microsoft Edge WebView2 Runtime，但当前系统未安装。\n\n\
-         点击"确定"打开下载页面，安装后重新启动 YAUZ。"
-    );
+    let text = wide(concat!(
+        "YAUZ requires the Microsoft Edge WebView2 Runtime, which is not installed on this system.\n\n",
+        "Click OK to open the download page, then install the runtime and relaunch YAUZ.\n\n",
+        "YAUZ \u{9700}\u{8981} Microsoft Edge WebView2 Runtime\u{FF0C}\u{4F46}\u{5F53}\u{524D}\u{7CFB}\u{7EDF}\u{672A}\u{5B89}\u{88C5}\u{3002}\n\n",
+        "\u{70B9}\u{51FB}\u{300C}\u{786E}\u{5B9A}\u{300D}\u{6253}\u{5F00}\u{4E0B}\u{8F7D}\u{9875}\u{9762}\u{FF0C}\u{5B89}\u{88C5}\u{540E}\u{91CD}\u{65B0}\u{542F}\u{52A8} YAUZ\u{3002}",
+    ));
 
     // MB_OK | MB_ICONERROR
     unsafe {
