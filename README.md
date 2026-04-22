@@ -15,6 +15,15 @@ Yet Another UZip — a lightweight, cross-platform archive extraction tool built
 - **Headless 7-Zip** — no console windows flash during extraction on Windows
 - **Portable** — single executable, no installation required; config file generated alongside the exe
 
+## Platform Requirements
+
+| Platform | Requirement |
+|----------|-------------|
+| Windows  | [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) (pre-installed on Windows 11 and most updated Windows 10 systems) |
+| macOS    | macOS 10.15+ (uses built-in WKWebView) |
+
+> **Windows users:** If WebView2 is not installed, YAUZ will show a prompt and open the download page on launch. Install the runtime, then relaunch YAUZ.
+
 ## Supported Archive Formats
 
 All formats supported by 7-Zip, including: `zip`, `rar`, `7z`, `tar`, `gz`, `bz2`, `xz`, `zst`, and more.

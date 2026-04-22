@@ -8,13 +8,6 @@ on:
 permissions:
   contents: write
 
-# WebView2 Fixed Version Runtime — bundled into the Windows zip for
-# machines without Edge / WebView2 Runtime installed.
-# Archive source: https://github.com/westinyang/WebView2RuntimeArchive
-# To update: pick a newer release tag and change the version below.
-env:
-  WEBVIEW2_VERSION: "133.0.3065.92"
-
 jobs:
   build:
     strategy:
@@ -52,31 +45,10 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: npx tauri build --target ${{ matrix.target }} --bundles app
 
-      - name: Download WebView2 Fixed Version Runtime
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          $cabUrl = "https://github.com/westinyang/WebView2RuntimeArchive/releases/download/${{ env.WEBVIEW2_VERSION }}/Microsoft.WebView2.FixedVersionRuntime.${{ env.WEBVIEW2_VERSION }}.x64.cab"
-          Invoke-WebRequest -Uri $cabUrl -OutFile webview2.cab
-          mkdir runtime-extract
-          expand webview2.cab -F:* runtime-extract
-          # The cab extracts to a versioned subfolder — rename to "runtime"
-          $subdir = Get-ChildItem runtime-extract -Directory | Select-Object -First 1
-          if ($subdir) {
-            Move-Item $subdir.FullName "runtime"
-          } else {
-            Rename-Item "runtime-extract" "runtime"
-          }
-
       - name: Prepare Windows artifact
         if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          $stageDir = "YAUZ-windows-x64"
-          mkdir $stageDir
-          Copy-Item "src-tauri/target/${{ matrix.target }}/release/yauz.exe" "$stageDir/yauz.exe"
-          Copy-Item -Recurse "runtime" "$stageDir/runtime"
-          Compress-Archive -Path "$stageDir/*" -DestinationPath "YAUZ-windows-x64.zip"
+        shell: bash
+        run: cp "src-tauri/target/${{ matrix.target }}/release/yauz.exe" "yauz-windows-x64.exe"
 
       - name: Prepare macOS artifact
         if: matrix.os == 'macos-latest'
@@ -88,5 +60,5 @@ jobs:
         uses: softprops/action-gh-release@v2.6.1
         with:
           files: |
-            YAUZ-windows-x64.zip
+            yauz-windows-x64.exe
             YAUZ-macos-arm64.zip
