@@ -8,6 +8,13 @@ on:
 permissions:
   contents: write
 
+# WebView2 Fixed Version Runtime — bundled into the Windows zip for
+# machines without Edge / WebView2 Runtime installed.
+# Archive source: https://github.com/westinyang/WebView2RuntimeArchive
+# To update: pick a newer release tag and change the version below.
+env:
+  WEBVIEW2_VERSION: "133.0.3065.92"
+
 jobs:
   build:
     strategy:
@@ -39,20 +46,37 @@ jobs:
 
       - name: Build Tauri app (Windows)
         if: matrix.os == 'windows-latest'
-        run: npx tauri build --target ${{ matrix.target }} --bundles nsis
+        run: npx tauri build --target ${{ matrix.target }}
 
       - name: Build Tauri app (macOS)
         if: matrix.os == 'macos-latest'
         run: npx tauri build --target ${{ matrix.target }} --bundles app
 
+      - name: Download WebView2 Fixed Version Runtime
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $cabUrl = "https://github.com/westinyang/WebView2RuntimeArchive/releases/download/${{ env.WEBVIEW2_VERSION }}/Microsoft.WebView2.FixedVersionRuntime.${{ env.WEBVIEW2_VERSION }}.x64.cab"
+          Invoke-WebRequest -Uri $cabUrl -OutFile webview2.cab
+          mkdir runtime-extract
+          expand webview2.cab -F:* runtime-extract
+          # The cab extracts to a versioned subfolder — rename to "runtime"
+          $subdir = Get-ChildItem runtime-extract -Directory | Select-Object -First 1
+          if ($subdir) {
+            Move-Item $subdir.FullName "runtime"
+          } else {
+            Rename-Item "runtime-extract" "runtime"
+          }
+
       - name: Prepare Windows artifact
         if: matrix.os == 'windows-latest'
-        shell: bash
+        shell: pwsh
         run: |
-          cp "src-tauri/target/${{ matrix.target }}/release/yauz.exe" "YAUZ-windows-x64.exe"
-          NSIS_DIR="src-tauri/target/${{ matrix.target }}/release/bundle/nsis"
-          SETUP_FILE=$(ls "$NSIS_DIR"/*-setup.exe 2>/dev/null | head -1)
-          cp "$SETUP_FILE" "YAUZ-windows-x64-setup.exe"
+          $stageDir = "YAUZ-windows-x64"
+          mkdir $stageDir
+          Copy-Item "src-tauri/target/${{ matrix.target }}/release/yauz.exe" "$stageDir/yauz.exe"
+          Copy-Item -Recurse "runtime" "$stageDir/runtime"
+          Compress-Archive -Path "$stageDir/*" -DestinationPath "YAUZ-windows-x64.zip"
 
       - name: Prepare macOS artifact
         if: matrix.os == 'macos-latest'
@@ -64,6 +88,5 @@ jobs:
         uses: softprops/action-gh-release@v2.6.1
         with:
           files: |
-            YAUZ-windows-x64.exe
-            YAUZ-windows-x64-setup.exe
+            YAUZ-windows-x64.zip
             YAUZ-macos-arm64.zip

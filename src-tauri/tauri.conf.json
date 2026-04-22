@@ -1,6 +1,6 @@
 {
   "productName": "YAUZ",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "identifier": "com.yauz.dev",
   "build": {
     "frontendDist": "../dist"
@@ -24,11 +24,7 @@
     "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"],
     "windows": {
       "webviewInstallMode": {
-        "type": "offlineInstaller",
-        "silent": true
-      },
-      "nsis": {
-        "installMode": "both"
+        "type": "skip"
       }
     },
     "macOS": {
