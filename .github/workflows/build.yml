@@ -39,7 +39,7 @@ jobs:
 
       - name: Build Tauri app (Windows)
         if: matrix.os == 'windows-latest'
-        run: npx tauri build --target ${{ matrix.target }}
+        run: npx tauri build --target ${{ matrix.target }} --bundles nsis
 
       - name: Build Tauri app (macOS)
         if: matrix.os == 'macos-latest'
@@ -48,7 +48,11 @@ jobs:
       - name: Prepare Windows artifact
         if: matrix.os == 'windows-latest'
         shell: bash
-        run: cp "src-tauri/target/${{ matrix.target }}/release/yauz.exe" "yauz-windows-x64.exe"
+        run: |
+          cp "src-tauri/target/${{ matrix.target }}/release/yauz.exe" "YAUZ-windows-x64.exe"
+          NSIS_DIR="src-tauri/target/${{ matrix.target }}/release/bundle/nsis"
+          SETUP_FILE=$(ls "$NSIS_DIR"/*-setup.exe 2>/dev/null | head -1)
+          cp "$SETUP_FILE" "YAUZ-windows-x64-setup.exe"
 
       - name: Prepare macOS artifact
         if: matrix.os == 'macos-latest'
@@ -60,5 +64,6 @@ jobs:
         uses: softprops/action-gh-release@v2.6.1
         with:
           files: |
-            yauz-windows-x64.exe
+            YAUZ-windows-x64.exe
+            YAUZ-windows-x64-setup.exe
             YAUZ-macos-arm64.zip
