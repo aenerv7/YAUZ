@@ -4,8 +4,8 @@ inclusion: always
 
 # YAUZ Project Context
 
-- YAUZ stands for "Yet Another UZip".
-- When referring to the full name of the project, always use "Yet Another UZip", not "Yet Another Unzipper" or any other variation.
+- YAUZ stands for "Yet Another Unzipper".
+- When referring to the full name of the project, always use "Yet Another Unzipper", not "Yet Another UZip" or any other variation.
 
 ## 7-Zip Compatibility
 
